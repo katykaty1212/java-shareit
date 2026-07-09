@@ -25,10 +25,11 @@ import ru.practicum.shareit.item.model.ItemResponseDto;
 import ru.practicum.shareit.item.service.ItemService;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -143,5 +144,135 @@ class ItemControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.text", is("Отличная вещь!")));
+    }
+
+    @Test
+    void findAllItemsByUser_shouldCallEnrich() throws Exception {
+        Long ownerId = 1L;
+
+        Item item = new Item();
+        item.setId(1L);
+        item.setName("Дрель");
+
+        when(itemService.findAllItemsByUser(ownerId)).thenReturn(List.of(item));
+        when(itemMapper.mapToDto(any(Item.class))).thenReturn(new ItemResponseDto());
+        when(bookingRepository.findFirstByItemIdAndEndBeforeOrderByEndDesc(anyLong(), any()))
+                .thenReturn(Optional.empty());
+        when(bookingRepository.findFirstByItemIdAndStartAfterOrderByStartAsc(anyLong(), any()))
+                .thenReturn(Optional.empty());
+        when(commentRepository.findAllByItemId(anyLong())).thenReturn(List.of());
+
+        mvc.perform(get("/items")
+                        .header("X-Sharer-User-Id", ownerId))
+                .andExpect(status().isOk());
+
+        verify(itemService, times(1)).findAllItemsByUser(ownerId);
+    }
+
+    @Test
+    void findItemById_shouldCallEnrich() throws Exception {
+        Long itemId = 1L;
+
+        Item item = new Item();
+        item.setId(itemId);
+        item.setName("Дрель");
+
+        when(itemService.findItemById(itemId)).thenReturn(item);
+        when(itemMapper.mapToDto(any(Item.class))).thenReturn(new ItemResponseDto());
+        when(bookingRepository.findFirstByItemIdAndEndBeforeOrderByEndDesc(anyLong(), any()))
+                .thenReturn(Optional.empty());
+        when(bookingRepository.findFirstByItemIdAndStartAfterOrderByStartAsc(anyLong(), any()))
+                .thenReturn(Optional.empty());
+        when(commentRepository.findAllByItemId(anyLong())).thenReturn(List.of());
+
+        mvc.perform(get("/items/" + itemId))
+                .andExpect(status().isOk());
+
+        verify(itemService, times(1)).findItemById(itemId);
+    }
+
+    @Test
+    void addComment_shouldCallCommentMapper() throws Exception {
+        Long itemId = 1L;
+        Long userId = 2L;
+        String text = "Отличная вещь!";
+
+        Comment comment = new Comment();
+        comment.setId(1L);
+        comment.setText(text);
+
+        CommentDto commentDto = new CommentDto();
+        commentDto.setId(1L);
+        commentDto.setText(text);
+
+        when(itemService.addComment(eq(itemId), eq(userId), eq(text))).thenReturn(comment);
+        when(commentMapper.toDto(comment)).thenReturn(commentDto);
+
+        mvc.perform(post("/items/" + itemId + "/comment")
+                        .header("X-Sharer-User-Id", userId)
+                        .content(text)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        verify(commentMapper, times(1)).toDto(comment);
+    }
+
+    @Test
+    void findItemById_shouldEnrichWithBookingsAndComments() throws Exception {
+        Long itemId = 1L;
+
+        Item item = new Item();
+        item.setId(itemId);
+        item.setName("Дрель");
+
+        when(itemService.findItemById(itemId)).thenReturn(item);
+        when(itemMapper.mapToDto(any(Item.class))).thenReturn(new ItemResponseDto());
+        when(bookingRepository.findFirstByItemIdAndEndBeforeOrderByEndDesc(anyLong(), any()))
+                .thenReturn(Optional.empty());
+        when(bookingRepository.findFirstByItemIdAndStartAfterOrderByStartAsc(anyLong(), any()))
+                .thenReturn(Optional.empty());
+        when(commentRepository.findAllByItemId(anyLong())).thenReturn(List.of());
+
+        mvc.perform(get("/items/" + itemId))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void searchItems_shouldReturnList() throws Exception {
+        String text = "дрель";
+
+        Item item = new Item();
+        item.setId(1L);
+        item.setName("Дрель");
+        item.setDescription("Аккумуляторная");
+        item.setAvailable(true);
+
+        ItemResponseDto responseDto = new ItemResponseDto();
+        responseDto.setId(1L);
+        responseDto.setName("Дрель");
+        responseDto.setDescription("Аккумуляторная");
+        responseDto.setAvailable(true);
+
+        when(itemService.searchItems(text)).thenReturn(List.of(item));
+        when(itemMapper.mapToDto(any(Item.class))).thenReturn(responseDto);
+
+        mvc.perform(get("/items/search")
+                        .param("text", text))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()", is(1)))
+                .andExpect(jsonPath("$[0].id", is(1)))
+                .andExpect(jsonPath("$[0].name", is("Дрель")));
+    }
+
+    @Test
+    void searchItems_shouldReturnEmptyList_whenTextNotFound() throws Exception {
+        String text = "несуществующая";
+
+        when(itemService.searchItems(text)).thenReturn(List.of());
+
+        mvc.perform(get("/items/search")
+                        .param("text", text))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()", is(0)));
     }
 }

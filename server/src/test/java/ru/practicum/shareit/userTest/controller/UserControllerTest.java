@@ -21,9 +21,10 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -113,5 +114,54 @@ class UserControllerTest {
                 .andExpect(jsonPath("$[0].name", is("John Doe")))
                 .andExpect(jsonPath("$[1].email", is("jane.smith@mail.com")))
                 .andExpect(jsonPath("$[1].name", is("Jane Smith")));
+    }
+
+    @Test
+    void getUserById_shouldReturnUser() throws Exception {
+        UserDto userDto = new UserDto();
+        userDto.setName("Иван");
+        userDto.setEmail("ivan@mail.com");
+
+        when(userService.getUserById(1L)).thenReturn(new User());
+        when(userMapper.mapToDto(any(User.class))).thenReturn(userDto);
+
+        mvc.perform(get("/users/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name", is("Иван")))
+                .andExpect(jsonPath("$.email", is("ivan@mail.com")));
+    }
+
+    @Test
+    void updateUser_shouldReturnUpdatedUser() throws Exception {
+        UserDto updateDto = new UserDto();
+        updateDto.setName("Петр");
+        updateDto.setEmail("petr@mail.com");
+
+        UserDto updatedDto = new UserDto();
+        updatedDto.setName("Петр");
+        updatedDto.setEmail("petr@mail.com");
+
+        User user = new User();
+        user.setId(1L);
+
+
+        when(userMapper.mapToUser(any(UserDto.class))).thenReturn(user);
+        when(userService.updateUser(eq(1L), any(User.class))).thenReturn(user);
+        when(userMapper.mapToDto(any(User.class))).thenReturn(updatedDto);
+
+        mvc.perform(patch("/users/1")
+                        .content(mapper.writeValueAsString(updateDto))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name", is("Петр")))
+                .andExpect(jsonPath("$.email", is("petr@mail.com")));
+    }
+
+    @Test
+    void deleteUser_shouldReturnOk() throws Exception {
+        doNothing().when(userService).deleteUser(1L);
+
+        mvc.perform(delete("/users/1"))
+                .andExpect(status().isOk());
     }
 }

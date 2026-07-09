@@ -20,7 +20,7 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -152,5 +152,32 @@ class BookingControllerTest {
                         .param("approved", "false"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is("REJECTED")));
+    }
+
+    @Test
+    void createBooking_shouldMapDtoToBooking() throws Exception {
+        Long userId = 2L;
+
+        BookingRequestDto dto = new BookingRequestDto();
+        dto.setItemId(1L);
+        dto.setStart(LocalDateTime.now().plusDays(1));
+        dto.setEnd(LocalDateTime.now().plusDays(3));
+
+        Booking booking = new Booking();
+        booking.setId(1L);
+
+        BookingResponseDto responseDto = new BookingResponseDto();
+        responseDto.setId(1L);
+
+        when(bookingService.createBooking(any(Booking.class), eq(userId))).thenReturn(booking);
+        when(bookingMapper.toDto(booking)).thenReturn(responseDto);
+
+        mvc.perform(post("/bookings")
+                        .header("X-Sharer-User-Id", userId)
+                        .content(mapper.writeValueAsString(dto))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        verify(bookingMapper, times(1)).toDto(booking);
     }
 }
