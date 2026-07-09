@@ -14,11 +14,13 @@ import ru.practicum.shareit.request.repository.RequestItemRepository;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -141,5 +143,115 @@ class ItemServiceUnitTest {
         assertThatThrownBy(() -> itemService.deleteItem(1L, 2L))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessage("Удалять можно только свои вещи");
+    }
+
+    @Test
+    void updateItem_shouldUpdateOnlyName() {
+        User owner = new User();
+        owner.setId(1L);
+
+        Item existingItem = new Item();
+        existingItem.setId(1L);
+        existingItem.setName("Старое имя");
+        existingItem.setDescription("Старое описание");
+        existingItem.setAvailable(true);
+        existingItem.setOwner(owner);
+
+        Item updateData = new Item();
+        updateData.setName("Новое имя");
+
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(existingItem));
+        when(itemRepository.save(existingItem)).thenReturn(existingItem);
+
+        Item result = itemService.updateItem(updateData, 1L, 1L);
+
+        assertEquals("Новое имя", result.getName());
+        assertEquals("Старое описание", result.getDescription());
+        assertTrue(result.getAvailable());
+    }
+
+    @Test
+    void updateItem_shouldUpdateOnlyDescription() {
+        User owner = new User();
+        owner.setId(1L);
+
+        Item existingItem = new Item();
+        existingItem.setId(1L);
+        existingItem.setName("Старое имя");
+        existingItem.setDescription("Старое описание");
+        existingItem.setAvailable(true);
+        existingItem.setOwner(owner);
+
+        Item updateData = new Item();
+        updateData.setDescription("Новое описание");
+
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(existingItem));
+        when(itemRepository.save(existingItem)).thenReturn(existingItem);
+
+        Item result = itemService.updateItem(updateData, 1L, 1L);
+
+        assertEquals("Старое имя", result.getName());
+        assertEquals("Новое описание", result.getDescription());
+        assertTrue(result.getAvailable());
+    }
+
+    @Test
+    void updateItem_shouldUpdateOnlyAvailable() {
+        User owner = new User();
+        owner.setId(1L);
+
+        Item existingItem = new Item();
+        existingItem.setId(1L);
+        existingItem.setName("Старое имя");
+        existingItem.setDescription("Старое описание");
+        existingItem.setAvailable(true);
+        existingItem.setOwner(owner);
+
+        Item updateData = new Item();
+        updateData.setAvailable(false);
+
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(existingItem));
+        when(itemRepository.save(existingItem)).thenReturn(existingItem);
+
+        Item result = itemService.updateItem(updateData, 1L, 1L);
+
+        assertEquals("Старое имя", result.getName());
+        assertEquals("Старое описание", result.getDescription());
+        assertFalse(result.getAvailable());
+    }
+
+    @Test
+    void searchItems_shouldReturnEmpty_whenTextIsEmpty() {
+        when(itemRepository.search("")).thenReturn(List.of());
+
+        List<Item> result = itemService.searchItems("");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void searchItems_shouldReturnEmpty_whenTextIsNull() {
+        when(itemRepository.search(null)).thenReturn(List.of());
+
+        List<Item> result = itemService.searchItems(null);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void deleteItem_shouldThrowNotFound_whenItemNotExists() {
+        when(itemRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> itemService.deleteItem(999L, 1L))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void findAllItemsByUser_shouldReturnEmpty_whenUserHasNoItems() {
+        when(itemRepository.findAllByOwnerId(1L)).thenReturn(List.of());
+
+        List<Item> result = itemService.findAllItemsByUser(1L);
+
+        assertTrue(result.isEmpty());
     }
 }
