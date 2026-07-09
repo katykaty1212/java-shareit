@@ -5,11 +5,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.practicum.shareit.booking.model.Booking;
+import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.exception.AccessDeniedException;
 import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.item.comments.model.Comment;
+import ru.practicum.shareit.item.comments.repository.CommentRepository;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.repository.ItemRepository;
 import ru.practicum.shareit.item.service.ItemServiceImpl;
+import ru.practicum.shareit.request.answers.model.Answer;
+import ru.practicum.shareit.request.answers.repository.AnswerRepository;
+import ru.practicum.shareit.request.model.RequestItem;
 import ru.practicum.shareit.request.repository.RequestItemRepository;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
@@ -37,6 +44,15 @@ class ItemServiceUnitTest {
 
     @InjectMocks
     private ItemServiceImpl itemService;
+
+    @Mock
+    private CommentRepository commentRepository;
+
+    @Mock
+    private BookingRepository bookingRepository;
+
+    @Mock
+    private AnswerRepository answerRepository;
 
     @Test
     void createItem_shouldSaveAndReturnItem() {
@@ -253,5 +269,119 @@ class ItemServiceUnitTest {
         List<Item> result = itemService.findAllItemsByUser(1L);
 
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void addComment_shouldSaveComment() {
+        Long itemId = 1L;
+        Long userId = 2L;
+        String text = "Отличная вещь!";
+
+        Item item = new Item();
+        item.setId(itemId);
+
+        User author = new User();
+        author.setId(userId);
+
+        Booking pastBooking = new Booking();
+        pastBooking.setId(1L);
+
+        Comment savedComment = new Comment();
+        savedComment.setId(1L);
+        savedComment.setText(text);
+        savedComment.setItem(item);
+        savedComment.setAuthor(author);
+
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(item));
+        when(userService.getUserById(userId)).thenReturn(author);
+        when(bookingRepository.findFirstByItemIdAndBookerIdAndEndBefore(eq(itemId), eq(userId), any()))
+                .thenReturn(Optional.of(pastBooking));
+        when(commentRepository.save(any())).thenReturn(savedComment);
+
+        Comment result = itemService.addComment(itemId, userId, text);
+
+        assertThat(result.getId(), is(1L));
+        assertThat(result.getText(), is(text));
+        verify(commentRepository, times(1)).save(any());
+    }
+
+    @Test
+    void createItem_shouldSaveWithRequestId() {
+        User owner = new User();
+        owner.setId(1L);
+
+        RequestItem request = new RequestItem();
+        request.setId(1L);
+
+        Item item = new Item();
+        item.setName("Дрель");
+        item.setDescription("Аккумуляторная");
+        item.setAvailable(true);
+        item.setRequest(request);
+
+        Item savedItem = new Item();
+        savedItem.setId(1L);
+        savedItem.setName("Дрель");
+        savedItem.setRequest(request);
+        savedItem.setOwner(owner);
+
+        when(userService.getUserById(1L)).thenReturn(owner);
+        when(requestItemRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(itemRepository.save(any())).thenReturn(savedItem);
+        when(answerRepository.save(any())).thenReturn(new Answer());
+
+        Item result = itemService.createItem(item, 1L);
+
+        assertThat(result.getId(), is(1L));
+        assertThat(result.getName(), is("Дрель"));
+        verify(requestItemRepository, times(1)).findById(1L);
+        verify(answerRepository, times(1)).save(any());
+    }
+
+    @Test
+    void createItem_shouldThrow_whenRequestNotFound() {
+        User owner = new User();
+        owner.setId(1L);
+
+        RequestItem request = new RequestItem();
+        request.setId(999L);
+
+        Item item = new Item();
+        item.setName("Дрель");
+        item.setRequest(request);
+
+        when(userService.getUserById(1L)).thenReturn(owner);
+        when(requestItemRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> itemService.createItem(item, 1L))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("Запрос вещи не найден");
+    }
+
+    @Test
+    void addComment_shouldThrowNotFound_whenItemNotFound() {
+        when(itemRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> itemService.addComment(999L, 1L, "text"))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("не найдена");
+    }
+
+    @Test
+    void addComment_shouldThrow_whenUserNotBookedItem() {
+        Long itemId = 1L;
+        Long userId = 2L;
+
+        Item item = new Item();
+        item.setId(itemId);
+
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(item));
+        when(userService.getUserById(userId)).thenReturn(new User());
+        when(bookingRepository.findFirstByItemIdAndBookerIdAndEndBefore(eq(itemId), eq(userId), any()))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> itemService.addComment(itemId, userId, "text"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Пользователь не брал эту вещь в аренду");
     }
 }

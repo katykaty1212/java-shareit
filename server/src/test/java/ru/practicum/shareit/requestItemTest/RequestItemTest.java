@@ -5,6 +5,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.request.model.RequestItem;
 import ru.practicum.shareit.request.repository.RequestItemRepository;
 import ru.practicum.shareit.request.service.RequestItemServiceImpl;
@@ -12,7 +13,9 @@ import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
 
 import java.util.List;
+import java.util.Optional;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
@@ -86,5 +89,61 @@ public class RequestItemTest {
         assertThat(result.get(1).getDescription(), is("Запрос молотка."));
 
         verify(requestItemRepository, times(1)).findAll();
+    }
+
+    @Test
+    void getRequestItemById_shouldReturnRequest() {
+        User user = new User();
+        user.setId(1L);
+
+        RequestItem request = RequestItem.builder()
+                .id(1L)
+                .description("Нужна дрель")
+                .requestor(user)
+                .build();
+
+        when(requestItemRepository.findById(1L)).thenReturn(Optional.of(request));
+
+        RequestItem result = requestItemService.getRequestItemById(1L);
+
+        assertThat(result.getId(), is(1L));
+        assertThat(result.getDescription(), is("Нужна дрель"));
+        assertThat(result.getRequestor().getId(), is(1L));
+    }
+
+    @Test
+    void getRequestItemById_shouldThrowNotFound_whenRequestNotExists() {
+        when(requestItemRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> requestItemService.getRequestItemById(999L))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("Запрос не найден");
+    }
+
+    @Test
+    void getMyRequests_shouldReturnUserRequests() {
+        User user = new User();
+        user.setId(1L);
+
+        RequestItem request1 = RequestItem.builder()
+                .id(1L)
+                .description("Запрос 1")
+                .requestor(user)
+                .build();
+
+        RequestItem request2 = RequestItem.builder()
+                .id(2L)
+                .description("Запрос 2")
+                .requestor(user)
+                .build();
+
+        when(requestItemRepository.findAllByRequestorIdOrderByCreatedDesc(1L))
+                .thenReturn(List.of(request1, request2));
+
+        List<RequestItem> result = requestItemService.getAllRequestItemByOwner(1L);
+
+        assertThat(result, hasSize(2));
+        assertThat(result.get(0).getDescription(), is("Запрос 1"));
+        assertThat(result.get(1).getDescription(), is("Запрос 2"));
     }
 }

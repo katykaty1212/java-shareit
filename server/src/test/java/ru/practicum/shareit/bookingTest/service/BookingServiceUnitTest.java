@@ -6,6 +6,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.practicum.shareit.booking.model.Booking;
+import ru.practicum.shareit.booking.model.BookingState;
 import ru.practicum.shareit.booking.model.BookingStatus;
 import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.booking.service.BookingServiceImpl;
@@ -17,6 +18,7 @@ import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -247,5 +249,139 @@ class BookingServiceUnitTest {
 
         assertThatThrownBy(() -> bookingService.updateBookingStatus(10L, 1L, true))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void findAllBookingsByUser_shouldReturnCurrentBookings() {
+        Long userId = 1L;
+        LocalDateTime now = LocalDateTime.now();
+
+        Booking current = new Booking();
+        current.setStart(now.minusDays(1));
+        current.setEnd(now.plusDays(1));
+
+        Booking past = new Booking();
+        past.setStart(now.minusDays(3));
+        past.setEnd(now.minusDays(2));
+
+        Booking future = new Booking();
+        future.setStart(now.plusDays(2));
+        future.setEnd(now.plusDays(4));
+
+        when(bookingRepository.findAllByBookerIdOrderByStartDesc(userId))
+                .thenReturn(List.of(current, past, future));
+
+        List<Booking> result = bookingService.findAllBookingsByUser(userId, BookingState.CURRENT);
+
+        assertThat(result, hasSize(1));
+        assertThat(result.get(0).getStart(), is(current.getStart()));
+    }
+
+    @Test
+    void findAllBookingsByUser_shouldReturnPastBookings() {
+        Long userId = 1L;
+        LocalDateTime now = LocalDateTime.now();
+
+        Booking current = new Booking();
+        current.setStart(now.minusDays(1));
+        current.setEnd(now.plusDays(1));
+
+        Booking past = new Booking();
+        past.setStart(now.minusDays(3));
+        past.setEnd(now.minusDays(2));
+
+        Booking future = new Booking();
+        future.setStart(now.plusDays(2));
+        future.setEnd(now.plusDays(4));
+
+        when(bookingRepository.findAllByBookerIdOrderByStartDesc(userId))
+                .thenReturn(List.of(current, past, future));
+
+        List<Booking> result = bookingService.findAllBookingsByUser(userId, BookingState.PAST);
+
+        assertThat(result, hasSize(1));
+        assertThat(result.get(0).getStart(), is(past.getStart()));
+    }
+
+    @Test
+    void findAllBookingsByUser_shouldReturnFutureBookings() {
+        Long userId = 1L;
+        LocalDateTime now = LocalDateTime.now();
+
+        Booking current = new Booking();
+        current.setStart(now.minusDays(1));
+        current.setEnd(now.plusDays(1));
+
+        Booking past = new Booking();
+        past.setStart(now.minusDays(3));
+        past.setEnd(now.minusDays(2));
+
+        Booking future = new Booking();
+        future.setStart(now.plusDays(2));
+        future.setEnd(now.plusDays(4));
+
+        when(bookingRepository.findAllByBookerIdOrderByStartDesc(userId))
+                .thenReturn(List.of(current, past, future));
+
+        List<Booking> result = bookingService.findAllBookingsByUser(userId, BookingState.FUTURE);
+
+        assertThat(result, hasSize(1));
+        assertThat(result.get(0).getStart(), is(future.getStart()));
+    }
+
+    @Test
+    void findAllBookingsByUser_shouldReturnWaitingBookings() {
+        Long userId = 1L;
+
+        Booking waiting = new Booking();
+        waiting.setStatus(BookingStatus.WAITING);
+
+        Booking approved = new Booking();
+        approved.setStatus(BookingStatus.APPROVED);
+
+        when(bookingRepository.findAllByBookerIdOrderByStartDesc(userId))
+                .thenReturn(List.of(waiting, approved));
+
+        List<Booking> result = bookingService.findAllBookingsByUser(userId, BookingState.WAITING);
+
+        assertThat(result, hasSize(1));
+        assertThat(result.get(0).getStatus(), is(BookingStatus.WAITING));
+    }
+
+    @Test
+    void findAllBookingsByUser_shouldReturnRejectedBookings() {
+        Long userId = 1L;
+
+        Booking rejected = new Booking();
+        rejected.setStatus(BookingStatus.REJECTED);
+
+        Booking approved = new Booking();
+        approved.setStatus(BookingStatus.APPROVED);
+
+        when(bookingRepository.findAllByBookerIdOrderByStartDesc(userId))
+                .thenReturn(List.of(rejected, approved));
+
+        List<Booking> result = bookingService.findAllBookingsByUser(userId, BookingState.REJECTED);
+
+        assertThat(result, hasSize(1));
+        assertThat(result.get(0).getStatus(), is(BookingStatus.REJECTED));
+    }
+
+    @Test
+    void findAllBookingsByUser_shouldReturnAllBookings() {
+        Long userId = 1L;
+
+        Booking booking1 = new Booking();
+        booking1.setStart(LocalDateTime.now().minusDays(1));
+
+        Booking booking2 = new Booking();
+        booking2.setStart(LocalDateTime.now().plusDays(2));
+
+        when(bookingRepository.findAllByBookerIdOrderByStartDesc(userId))
+                .thenReturn(List.of(booking1, booking2));
+
+        List<Booking> result = bookingService.findAllBookingsByUser(userId, BookingState.ALL);
+
+        assertThat(result, hasSize(2));
     }
 }

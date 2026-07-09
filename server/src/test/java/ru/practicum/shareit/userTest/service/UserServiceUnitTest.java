@@ -121,4 +121,80 @@ class UserServiceUnitTest {
 
         verify(userRepository, times(1)).deleteById(1L);
     }
+
+    @Test
+    void updateUser_shouldUpdateOnlyName() {
+        User existingUser = new User();
+        existingUser.setId(1L);
+        existingUser.setName("Старое имя");
+        existingUser.setEmail("old@mail.com");
+
+        User updateData = new User();
+        updateData.setName("Новое имя");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(existingUser)).thenReturn(existingUser);
+
+        User result = userService.updateUser(1L, updateData);
+
+        assertThat(result.getName(), is("Новое имя"));
+        assertThat(result.getEmail(), is("old@mail.com"));
+    }
+
+    @Test
+    void updateUser_shouldUpdateOnlyEmail() {
+        User existingUser = new User();
+        existingUser.setId(1L);
+        existingUser.setName("Старое имя");
+        existingUser.setEmail("old@mail.com");
+
+        User updateData = new User();
+        updateData.setEmail("new@mail.com");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(existingUser)).thenReturn(existingUser);
+
+        User result = userService.updateUser(1L, updateData);
+
+        assertThat(result.getName(), is("Старое имя"));
+        assertThat(result.getEmail(), is("new@mail.com"));
+    }
+
+    @Test
+    void updateUser_shouldThrowNotFoundException_whenUserNotFound() {
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.updateUser(999L, new User()))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("не найден");
+    }
+
+    @Test
+    void deleteUser_shouldThrowNotFoundException_whenUserNotFound() {
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.deleteUser(999L))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("не найден");
+    }
+
+    @Test
+    void createUser_shouldThrow_whenEmailAlreadyExists() {
+        User newUser = new User();
+        newUser.setName("Иван");
+        newUser.setEmail("existing@mail.com");
+
+        User existingUser = new User();
+        existingUser.setId(1L);
+        existingUser.setName("Петр");
+        existingUser.setEmail("existing@mail.com");
+
+        when(userRepository.findByEmail("existing@mail.com"))
+                .thenReturn(Optional.of(existingUser));
+
+        assertThatThrownBy(() -> userService.createUser(newUser))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Пользователь с таким E-mail уже существует.");
+    }
+
 }

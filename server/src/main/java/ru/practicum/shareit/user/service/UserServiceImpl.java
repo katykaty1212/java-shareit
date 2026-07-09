@@ -28,6 +28,11 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public User createUser(User user) {
+
+        if (repository.findByEmail(user.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Пользователь с таким E-mail уже существует.");
+        }
+
         return repository.save(user);
     }
 

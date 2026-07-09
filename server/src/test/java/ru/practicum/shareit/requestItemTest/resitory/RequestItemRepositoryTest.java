@@ -85,4 +85,51 @@ class RequestItemRepositoryTest {
         assertThat(saved.getDescription(), is("Новый запрос"));
         assertThat(saved.getRequestor().getId(), is(user.getId()));
     }
+
+    @Test
+    void findById_shouldReturnRequest() {
+        User user = User.builder()
+                .name("Иван")
+                .email("ivan@mail.com")
+                .state(UserState.ACTIVE)
+                .build();
+        em.persist(user);
+        em.flush();
+
+        RequestItem request = new RequestItem();
+        request.setDescription("Нужна дрель");
+        request.setRequestor(user);
+        request.setCreated(Instant.now());
+        em.persist(request);
+        em.flush();
+
+        RequestItem found = requestItemRepository.findById(request.getId()).orElse(null);
+
+        assertThat(found, notNullValue());
+        assertThat(found.getDescription(), is("Нужна дрель"));
+        assertThat(found.getRequestor().getId(), is(user.getId()));
+    }
+
+    @Test
+    void deleteById_shouldDeleteRequest() {
+        User user = User.builder()
+                .name("Петр")
+                .email("petr@mail.com")
+                .state(UserState.ACTIVE)
+                .build();
+        em.persist(user);
+        em.flush();
+
+        RequestItem request = new RequestItem();
+        request.setDescription("Нужна отвертка");
+        request.setRequestor(user);
+        request.setCreated(Instant.now());
+        em.persist(request);
+        em.flush();
+
+        requestItemRepository.deleteById(request.getId());
+
+        RequestItem deleted = requestItemRepository.findById(request.getId()).orElse(null);
+        assertThat(deleted, nullValue());
+    }
 }
