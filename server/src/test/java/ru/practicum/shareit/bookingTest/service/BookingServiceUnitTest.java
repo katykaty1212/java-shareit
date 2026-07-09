@@ -384,4 +384,80 @@ class BookingServiceUnitTest {
 
         assertThat(result, hasSize(2));
     }
+
+    @Test
+    void findBookingById_shouldThrowNotFound_whenUserNotOwnerAndNotBooker() {
+        User owner = new User();
+        owner.setId(1L);
+
+        User booker = new User();
+        booker.setId(2L);
+
+        Item item = new Item();
+        item.setId(1L);
+        item.setOwner(owner);
+
+        Booking booking = new Booking();
+        booking.setId(10L);
+        booking.setItem(item);
+        booking.setBooker(booker);
+
+        when(bookingRepository.findById(10L)).thenReturn(Optional.of(booking));
+
+        assertThatThrownBy(() -> bookingService.findBookingById(10L, 3L))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("Бронирование не найдено");
+    }
+
+    @Test
+    void getOwnerBookings_shouldReturnBookings() {
+        Long ownerId = 1L;
+
+        Booking booking1 = new Booking();
+        booking1.setId(1L);
+        booking1.setStart(LocalDateTime.now().minusDays(2));
+        booking1.setEnd(LocalDateTime.now().minusDays(1));
+
+        Booking booking2 = new Booking();
+        booking2.setId(2L);
+        booking2.setStart(LocalDateTime.now().plusDays(1));
+        booking2.setEnd(LocalDateTime.now().plusDays(3));
+
+        when(bookingRepository.findAllByOwnerIdOrderByStartDesc(ownerId))
+                .thenReturn(List.of(booking1, booking2));
+
+        List<Booking> result = bookingService.getOwnerBookings(ownerId, BookingState.ALL);
+
+        assertThat(result, hasSize(2));
+        assertThat(result.get(0).getId(), is(1L));
+        assertThat(result.get(1).getId(), is(2L));
+
+        verify(bookingRepository, times(1)).findAllByOwnerIdOrderByStartDesc(ownerId);
+    }
+
+    @Test
+    void getOwnerBookings_shouldReturnFilteredBookings() {
+        Long ownerId = 1L;
+        LocalDateTime now = LocalDateTime.now();
+
+        Booking current = new Booking();
+        current.setStart(now.minusDays(1));
+        current.setEnd(now.plusDays(1));
+
+        Booking past = new Booking();
+        past.setStart(now.minusDays(3));
+        past.setEnd(now.minusDays(2));
+
+        Booking future = new Booking();
+        future.setStart(now.plusDays(2));
+        future.setEnd(now.plusDays(4));
+
+        when(bookingRepository.findAllByOwnerIdOrderByStartDesc(ownerId))
+                .thenReturn(List.of(current, past, future));
+
+        List<Booking> result = bookingService.getOwnerBookings(ownerId, BookingState.CURRENT);
+
+        assertThat(result, hasSize(1));
+        assertThat(result.get(0).getStart(), is(current.getStart()));
+    }
 }

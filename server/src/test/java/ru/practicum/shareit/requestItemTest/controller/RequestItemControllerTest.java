@@ -11,6 +11,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.request.answers.model.Answer;
 import ru.practicum.shareit.request.answers.repository.AnswerRepository;
 import ru.practicum.shareit.request.controller.RequestController;
 import ru.practicum.shareit.request.mapper.RequestItemMapper;
@@ -130,5 +132,48 @@ class RequestItemControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.description", is("Нужна аккумуляторная дрель")));
+    }
+
+    @Test
+    void getRequestById_shouldEnrichWithAnswers() throws Exception {
+        Long requestId = 1L;
+
+        User requestor = new User();
+        requestor.setId(1L);
+
+        RequestItem requestItem = new RequestItem();
+        requestItem.setId(requestId);
+        requestItem.setDescription("Нужна дрель");
+        requestItem.setRequestor(requestor);
+
+        User owner = new User();
+        owner.setId(2L);
+        owner.setName("Владелец");
+
+        Item item = new Item();
+        item.setId(1L);
+        item.setName("Дрель");
+        item.setOwner(owner);
+
+        Answer answer = new Answer();
+        answer.setId(1L);
+        answer.setRequest(requestItem);
+        answer.setItem(item);
+
+        RequestItemResponseDto responseDto = RequestItemResponseDto.builder()
+                .id(requestId)
+                .description("Нужна дрель")
+                .requestorId(1L)
+                .answers(List.of())
+                .build();
+
+        when(requestItemService.getRequestItemById(requestId)).thenReturn(requestItem);
+        when(mapper.mapToDto(any(RequestItem.class))).thenReturn(responseDto);
+        when(answerRepository.findByRequestId(requestId)).thenReturn(List.of(answer));
+
+        mvc.perform(get("/requests/{id}", requestId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.description", is("Нужна дрель")));
     }
 }

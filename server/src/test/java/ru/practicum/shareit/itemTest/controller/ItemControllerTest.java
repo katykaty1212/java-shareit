@@ -275,4 +275,40 @@ class ItemControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()", is(0)));
     }
+
+    @Test
+    void updateItem_shouldReturnUpdatedItem() throws Exception {
+        Long itemId = 1L;
+        Long ownerId = 1L;
+
+        ItemRequestDto dto = new ItemRequestDto();
+        dto.setName("Новое имя");
+        dto.setDescription("Новое описание");
+        dto.setAvailable(false);
+
+        Item item = new Item();
+        item.setId(itemId);
+        item.setName("Новое имя");
+        item.setDescription("Новое описание");
+        item.setAvailable(false);
+
+        ItemResponseDto responseDto = new ItemResponseDto();
+        responseDto.setId(itemId);
+        responseDto.setName("Новое имя");
+        responseDto.setDescription("Новое описание");
+        responseDto.setAvailable(false);
+
+        when(itemMapper.mapToItem(any(ItemRequestDto.class), isNull())).thenReturn(item);
+        when(itemService.updateItem(any(Item.class), eq(itemId), eq(ownerId))).thenReturn(item);
+        when(itemMapper.mapToDto(any(Item.class))).thenReturn(responseDto);
+
+        mvc.perform(patch("/items/{itemId}", itemId)
+                        .header("X-Sharer-User-Id", ownerId)
+                        .content(mapper.writeValueAsString(dto))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(1L), Long.class))
+                .andExpect(jsonPath("$.name", is("Новое имя")))
+                .andExpect(jsonPath("$.available", is(false)));
+    }
 }

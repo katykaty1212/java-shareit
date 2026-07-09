@@ -384,4 +384,67 @@ class ItemServiceUnitTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Пользователь не брал эту вещь в аренду");
     }
+
+    @Test
+    void createItem_shouldSetRequest_whenRequestExists() {
+        User owner = new User();
+        owner.setId(1L);
+
+        RequestItem request = new RequestItem();
+        request.setId(1L);
+
+        Item item = new Item();
+        item.setName("Дрель");
+        item.setDescription("Аккумуляторная");
+        item.setAvailable(true);
+        item.setRequest(request);
+
+        Item savedItem = new Item();
+        savedItem.setId(1L);
+        savedItem.setName("Дрель");
+        savedItem.setRequest(request);
+        savedItem.setOwner(owner);
+
+        when(userService.getUserById(1L)).thenReturn(owner);
+        when(requestItemRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(itemRepository.save(any())).thenReturn(savedItem);
+        when(answerRepository.save(any())).thenReturn(new Answer());
+
+        Item result = itemService.createItem(item, 1L);
+
+        assertThat(result.getId(), is(1L));
+        assertThat(result.getName(), is("Дрель"));
+        assertThat(result.getRequest(), is(request));
+
+        verify(requestItemRepository, times(1)).findById(1L);
+        verify(answerRepository, times(1)).save(any());
+    }
+
+    @Test
+    void createItem_shouldNotSetRequest_whenRequestIsNull() {
+        User owner = new User();
+        owner.setId(1L);
+
+        Item item = new Item();
+        item.setName("Дрель");
+        item.setDescription("Аккумуляторная");
+        item.setAvailable(true);
+        item.setRequest(null);   // ← request = null!
+
+        Item savedItem = new Item();
+        savedItem.setId(1L);
+        savedItem.setName("Дрель");
+        savedItem.setOwner(owner);
+
+        when(userService.getUserById(1L)).thenReturn(owner);
+        when(itemRepository.save(any())).thenReturn(savedItem);
+
+        Item result = itemService.createItem(item, 1L);
+
+        assertThat(result.getId(), is(1L));
+        assertThat(result.getName(), is("Дрель"));
+
+        verify(requestItemRepository, never()).findById(any());
+        verify(answerRepository, never()).save(any());
+    }
 }
