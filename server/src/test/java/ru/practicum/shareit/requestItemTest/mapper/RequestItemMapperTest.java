@@ -111,6 +111,7 @@ class RequestItemMapperTest {
         assertEquals(10L, dto.getId());
         assertEquals("Нужна аккумуляторная дрель", dto.getDescription());
     }
+
     @Test
     void mapToDto_shouldMapAnswerFields() {
         User requestor = new User();
