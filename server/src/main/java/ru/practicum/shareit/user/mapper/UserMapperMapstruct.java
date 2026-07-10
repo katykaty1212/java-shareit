@@ -16,6 +16,8 @@ public interface UserMapperMapstruct {
             qualifiedByName = "instantToString")
     UserDto mapToDto(User user);
 
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "registrationDate", ignore = true)
     User mapToUser(UserDto dto);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
@@ -23,6 +25,9 @@ public interface UserMapperMapstruct {
 
     @Named("instantToString")
     default String formatData(Instant instant) {
+        if (instant == null) {
+            return null;
+        }
         DateTimeFormatter formatter = DateTimeFormatter
                 .ofPattern("yyyy.MM.dd, hh:mm:ss")
                 .withZone(ZoneId.of("UTC"));

@@ -7,6 +7,7 @@ import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.repository.UserRepository;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -32,6 +33,8 @@ public class UserServiceImpl implements UserService {
         if (repository.findByEmail(user.getEmail()).isPresent()) {
             throw new IllegalArgumentException("Пользователь с таким E-mail уже существует.");
         }
+
+        user.setRegistrationDate(Instant.now());
 
         return repository.save(user);
     }
