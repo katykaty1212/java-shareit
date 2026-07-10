@@ -79,4 +79,82 @@ class BookingMapperTest {
         BookingResponseDto response = mapper.toDto(null);
         assertNull(response);
     }
+
+    @Test
+    void toBooking_shouldMapAllFields() {
+        BookingRequestDto dto = new BookingRequestDto();
+        dto.setItemId(1L);
+        dto.setStart(LocalDateTime.now().plusDays(1));
+        dto.setEnd(LocalDateTime.now().plusDays(3));
+
+        Item item = new Item();
+        item.setId(1L);
+
+        User booker = new User();
+        booker.setId(2L);
+
+        Booking booking = mapper.toBooking(dto, item, booker);
+
+        assertNotNull(booking);
+        assertNull(booking.getId());
+        assertEquals(item, booking.getItem());
+        assertEquals(booker, booking.getBooker());
+        assertEquals(dto.getStart(), booking.getStart());
+        assertEquals(dto.getEnd(), booking.getEnd());
+        assertEquals(BookingStatus.WAITING, booking.getStatus());
+    }
+
+    @Test
+    void toDto_shouldMapAllFields() {
+        Booking booking = new Booking();
+        booking.setId(10L);
+        booking.setStart(LocalDateTime.now().plusDays(1));
+        booking.setEnd(LocalDateTime.now().plusDays(3));
+
+        Item item = new Item();
+        item.setId(1L);
+        booking.setItem(item);
+
+        User booker = new User();
+        booker.setId(2L);
+        booking.setBooker(booker);
+
+        booking.setStatus(BookingStatus.APPROVED);
+
+        BookingResponseDto dto = mapper.toDto(booking);
+
+        assertNotNull(dto);
+        assertEquals(10L, dto.getId());
+        assertEquals(1L, dto.getItemId());
+        assertEquals(2L, dto.getBookerId());
+        assertEquals("APPROVED", dto.getStatus());
+        assertEquals(booking.getStart(), dto.getStart());
+        assertEquals(booking.getEnd(), dto.getEnd());
+    }
+
+    @Test
+    void toBooking_shouldHandleNullItem() {
+        BookingRequestDto dto = new BookingRequestDto();
+        dto.setItemId(1L);
+        dto.setStart(LocalDateTime.now().plusDays(1));
+        dto.setEnd(LocalDateTime.now().plusDays(3));
+
+        Booking booking = mapper.toBooking(dto, null, new User());
+
+        assertNotNull(booking);
+        assertNull(booking.getItem());
+    }
+
+    @Test
+    void toBooking_shouldHandleNullBooker() {
+        BookingRequestDto dto = new BookingRequestDto();
+        dto.setItemId(1L);
+        dto.setStart(LocalDateTime.now().plusDays(1));
+        dto.setEnd(LocalDateTime.now().plusDays(3));
+
+        Booking booking = mapper.toBooking(dto, new Item(), null);
+
+        assertNotNull(booking);
+        assertNull(booking.getBooker());
+    }
 }
