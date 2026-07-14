@@ -14,6 +14,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import ru.practicum.shareit.booking.mapper.BookingMapper;
 import ru.practicum.shareit.booking.model.*;
 import ru.practicum.shareit.booking.service.BookingService;
+import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.user.model.User;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -51,11 +53,18 @@ class BookingControllerTest {
 
         responseDto = new BookingResponseDto();
         responseDto.setId(10L);
-        responseDto.setItemId(1L);
-        responseDto.setBookerId(2L);
-        responseDto.setStatus("WAITING");
         responseDto.setStart(LocalDateTime.now().plusDays(1));
         responseDto.setEnd(LocalDateTime.now().plusDays(3));
+
+        User booker = new User();
+        booker.setId(2L);
+
+        Item item = new Item();
+        item.setId(1L);
+        item.setName("Дрель");
+
+        responseDto.setBooker(booker);
+        responseDto.setItem(item);
 
         requestDto = new BookingRequestDto();
         requestDto.setItemId(1L);
@@ -77,8 +86,8 @@ class BookingControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(10)))
-                .andExpect(jsonPath("$.itemId", is(1)))
-                .andExpect(jsonPath("$.bookerId", is(2)))
+                .andExpect(jsonPath("$.item.id", is(1)))
+                .andExpect(jsonPath("$.booker.id", is(2)))
                 .andExpect(jsonPath("$.status", is("WAITING")));
     }
 
@@ -91,7 +100,7 @@ class BookingControllerTest {
                         .header("X-Sharer-User-Id", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(10)))
-                .andExpect(jsonPath("$.itemId", is(1)));
+                .andExpect(jsonPath("$.item.id", is(1)));
     }
 
     @Test

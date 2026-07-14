@@ -67,8 +67,8 @@ class BookingMapperTest {
 
         assertNotNull(response);
         assertEquals(10L, response.getId());
-        assertEquals(1L, response.getItemId());
-        assertEquals(2L, response.getBookerId());
+        assertEquals(1L, response.getItem().getId());
+        assertEquals(2L, response.getBooker().getId());
         assertEquals("APPROVED", response.getStatus());
         assertEquals(requestDto.getStart(), response.getStart());
         assertEquals(requestDto.getEnd(), response.getEnd());
@@ -125,8 +125,8 @@ class BookingMapperTest {
 
         assertNotNull(dto);
         assertEquals(10L, dto.getId());
-        assertEquals(1L, dto.getItemId());
-        assertEquals(2L, dto.getBookerId());
+        assertEquals(1L, dto.getItem().getId());
+        assertEquals(2L, dto.getBooker().getId());
         assertEquals("APPROVED", dto.getStatus());
         assertEquals(booking.getStart(), dto.getStart());
         assertEquals(booking.getEnd(), dto.getEnd());

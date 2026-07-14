@@ -1,6 +1,7 @@
 package ru.practicum.shareit.booking.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.practicum.shareit.booking.model.*;
 import ru.practicum.shareit.booking.repository.BookingRepository;
@@ -16,6 +17,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final UserService userService;
@@ -41,6 +43,10 @@ public class BookingServiceImpl implements BookingService {
     }
 
     public List<Booking> getOwnerBookings(Long ownerId, BookingState state) {
+        if (itemRepository.findAllByOwnerId(ownerId).isEmpty()) {
+            throw new RuntimeException("У пользователя нет вещей");
+        }
+
         List<Booking> bookings = bookingRepository.findAllByOwnerIdOrderByStartDesc(ownerId);
         return filterBookings(bookings, state);
     }
@@ -67,24 +73,37 @@ public class BookingServiceImpl implements BookingService {
         booking.setBooker(booker);
         booking.setStatus(BookingStatus.WAITING);
 
-        return bookingRepository.save(booking);
+        Booking saved = bookingRepository.save(booking);
+        log.info("Бронирование сохранено с ID: {}", saved.getId());
+        return saved;
     }
 
     @Override
     public Booking updateBookingStatus(Long bookingId, Long ownerId, boolean approved) {
+        log.info("Обновление статуса: bookingId={}, ownerId={}, approved={}", bookingId, ownerId, approved);
+
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new NotFoundException("Бронь не найдена."));
+        log.info("Бронирование найдено: {}", booking.getId());
 
         if (!booking.getItem().getOwner().getId().equals(ownerId)) {
+            log.warn("Доступ запрещен: ownerId={}, владелец вещи={}", ownerId, booking.getItem().getOwner().getId());
             throw new AccessDeniedException("Статус может менять только владелец вещи.");
         }
+        log.info("Владелец подтвержден");
 
         if (booking.getStatus() != BookingStatus.WAITING) {
+            log.warn("Статус не WAITING: {}", booking.getStatus());
             throw new IllegalArgumentException("Статус бронирования: " + booking.getStatus());
         }
+        log.info("Статус WAITING, можно обновлять");
 
         booking.setStatus(approved ? BookingStatus.APPROVED : BookingStatus.REJECTED);
-        return bookingRepository.save(booking);
+        log.info("Новый статус: {}", booking.getStatus());
+
+        Booking saved = bookingRepository.save(booking);
+        log.info("Бронирование сохранено с ID: {}", saved.getId());
+        return saved;
     }
 
     private List<Booking> filterBookings(List<Booking> bookings, BookingState state) {

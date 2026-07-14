@@ -14,7 +14,7 @@ public interface BookingMapper {
     @Mapping(target = "status", constant = "WAITING")
     Booking toBooking(BookingRequestDto dto, Item item, User booker);
 
-    @Mapping(target = "itemId", source = "item.id")
-    @Mapping(target = "bookerId", source = "booker.id")
+    @Mapping(target = "booker", source = "booker")
+    @Mapping(target = "item", source = "item")
     BookingResponseDto toDto(Booking booking);
 }

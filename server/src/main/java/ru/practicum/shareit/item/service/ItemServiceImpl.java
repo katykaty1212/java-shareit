@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.exception.AccessDeniedException;
 import ru.practicum.shareit.exception.NotFoundException;
@@ -20,6 +21,7 @@ import ru.practicum.shareit.user.service.UserService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -118,13 +120,23 @@ public class ItemServiceImpl implements ItemService {
     @Override
     @Transactional
     public Comment addComment(Long itemId, Long userId, String text) {
+        log.info("itemId={}, userId={}", itemId, userId);
+
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new NotFoundException("Вещь с ID " + itemId + " не найдена."));
 
         User author = userService.getUserById(userId);
+        log.info("Автор найден: id={}", author.getId());
 
-        bookingRepository.findFirstByItemIdAndBookerIdAndEndBefore(itemId, userId, LocalDateTime.now())
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не брал эту вещь в аренду"));
+        LocalDateTime now = LocalDateTime.now();
+        log.info("Текущее время: {}", now);
+
+        Optional<Booking> booking = bookingRepository.findFirstByItemIdAndBookerIdAndEndBefore(itemId, userId, now);
+        if (booking.isEmpty()) {
+            log.warn("Бронирование НЕ НАЙДЕНО!");
+            throw new IllegalArgumentException("Пользователь не брал эту вещь в аренду");
+        }
+        log.info("Бронирование найдено: id={}", booking.get().getId());
 
         Comment comment = new Comment();
         comment.setText(text);

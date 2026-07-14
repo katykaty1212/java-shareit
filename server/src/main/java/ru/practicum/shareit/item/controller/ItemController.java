@@ -35,14 +35,15 @@ public class ItemController {
     @GetMapping
     public List<ItemResponseDto> findAllItemsByUser(@RequestHeader("X-Sharer-User-Id") Long ownerId) {
         return itemService.findAllItemsByUser(ownerId).stream()
-                .map(this::enrichWithBookingsAndComments)
+                .map(item -> enrichWithBookingsAndComments(item, ownerId))
                 .collect(Collectors.toList());
     }
 
     @GetMapping("/{itemId}")
-    public ItemResponseDto findItemById(@PathVariable Long itemId) {
+    public ItemResponseDto findItemById(@PathVariable Long itemId,
+                                        @RequestHeader("X-Sharer-User-Id") Long userId) {
         Item item = itemService.findItemById(itemId);
-        return enrichWithBookingsAndComments(item);
+        return enrichWithBookingsAndComments(item, userId);
     }
 
     @PostMapping
@@ -79,21 +80,22 @@ public class ItemController {
     @PostMapping("/{itemId}/comment")
     public CommentDto addComment(@PathVariable Long itemId,
                                  @RequestHeader("X-Sharer-User-Id") Long userId,
-                                 @RequestBody String text) {
-        Comment comment = itemService.addComment(itemId, userId, text);
+                                 @RequestBody CommentDto commentDto) {
+        Comment comment = itemService.addComment(itemId, userId, commentDto.getText());
         return commentMapper.toDto(comment);
     }
 
-    private ItemResponseDto enrichWithBookingsAndComments(Item item) {
+    private ItemResponseDto enrichWithBookingsAndComments(Item item, Long userId) {
         LocalDateTime now = LocalDateTime.now();
         ItemResponseDto dto = itemMapper.mapToDto(item);
 
-        bookingRepository.findFirstByItemIdAndEndBeforeOrderByEndDesc(item.getId(), now)
-                .ifPresent(booking -> dto.setLastBooking(bookingMapper.toDto(booking)));
+        if (item.getOwner().getId().equals(userId)) {
+            bookingRepository.findFirstByItemIdAndEndBeforeOrderByEndDesc(item.getId(), now)
+                    .ifPresent(booking -> dto.setLastBooking(bookingMapper.toDto(booking)));
 
-        bookingRepository.findFirstByItemIdAndStartAfterOrderByStartAsc(item.getId(), now)
-                .ifPresent(booking -> dto.setNextBooking(bookingMapper.toDto(booking)));
-
+            bookingRepository.findFirstByItemIdAndStartAfterOrderByStartAsc(item.getId(), now)
+                    .ifPresent(booking -> dto.setNextBooking(bookingMapper.toDto(booking)));
+        }
         dto.setComments(
                 commentRepository.findAllByItemId(item.getId()).stream()
                         .map(commentMapper::toDto)

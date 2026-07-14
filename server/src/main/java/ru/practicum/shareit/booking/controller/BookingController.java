@@ -1,6 +1,7 @@
 package ru.practicum.shareit.booking.controller;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.booking.mapper.BookingMapper;
 import ru.practicum.shareit.booking.model.*;
@@ -13,6 +14,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/bookings")
 @RequiredArgsConstructor
+@Slf4j
 public class BookingController {
 
     private final BookingService bookingService;
@@ -43,6 +45,8 @@ public class BookingController {
     @PostMapping
     public BookingResponseDto createBooking(@RequestBody BookingRequestDto dto,
                                             @RequestHeader("X-Sharer-User-Id") Long userId) {
+        log.info("Создание бронирования: itemId={}, userId={}", dto.getItemId(), userId);
+
         Item item = new Item();
         item.setId(dto.getItemId());
 
@@ -52,13 +56,26 @@ public class BookingController {
         booking.setEnd(dto.getEnd());
 
         Booking created = bookingService.createBooking(booking, userId);
-        return bookingMapper.toDto(created);
+        BookingResponseDto response = bookingMapper.toDto(created);
+
+        log.info("Ответ: booker.id={}, item.id={}",
+                response.getBooker() != null ? response.getBooker().getId() : "null",
+                response.getItem() != null ? response.getItem().getId() : "null");
+
+        return response;
     }
 
     @PatchMapping("/{bookingId}")
     public BookingResponseDto updateStatus(@PathVariable Long bookingId,
                                            @RequestHeader("X-Sharer-User-Id") Long ownerId,
                                            @RequestParam boolean approved) {
-        return bookingMapper.toDto(bookingService.updateBookingStatus(bookingId, ownerId, approved));
+        log.info("=== PATCH ЗАПРОС ===");
+        log.info("bookingId={}, ownerId={}, approved={}", bookingId, ownerId, approved);
+
+        Booking updated = bookingService.updateBookingStatus(bookingId, ownerId, approved);
+        BookingResponseDto response = bookingMapper.toDto(updated);
+
+        log.info("Ответ: статус={}", response.getStatus());
+        return response;
     }
 }
