@@ -16,4 +16,5 @@ public class RequestItemResponseDto {
     private Long requestorId;
     private String created;
     private List<AnswerDto> answers;
+    private List<AnswerDto> items;
 }

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.practicum.shareit.exception.DuplicateEmailException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.repository.UserRepository;
@@ -193,7 +194,7 @@ class UserServiceUnitTest {
                 .thenReturn(Optional.of(existingUser));
 
         assertThatThrownBy(() -> userService.createUser(newUser))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(DuplicateEmailException.class)
                 .hasMessage("Пользователь с таким E-mail уже существует.");
     }
 

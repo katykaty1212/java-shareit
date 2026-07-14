@@ -74,7 +74,7 @@ class ItemServiceUnitTest {
         when(userService.getUserById(1L)).thenReturn(owner);
         when(itemRepository.save(itemToSave)).thenReturn(savedItem);
 
-        Item result = itemService.createItem(itemToSave, 1L);
+        Item result = itemService.createItem(itemToSave, 1L, null);
 
         assertThat(result.getId(), is(1L));
         assertThat(result.getName(), is("Дрель"));
@@ -317,7 +317,6 @@ class ItemServiceUnitTest {
         item.setName("Дрель");
         item.setDescription("Аккумуляторная");
         item.setAvailable(true);
-        item.setRequest(request);
 
         Item savedItem = new Item();
         savedItem.setId(1L);
@@ -330,7 +329,7 @@ class ItemServiceUnitTest {
         when(itemRepository.save(any())).thenReturn(savedItem);
         when(answerRepository.save(any())).thenReturn(new Answer());
 
-        Item result = itemService.createItem(item, 1L);
+        Item result = itemService.createItem(item, 1L, 1L);
 
         assertThat(result.getId(), is(1L));
         assertThat(result.getName(), is("Дрель"));
@@ -348,12 +347,11 @@ class ItemServiceUnitTest {
 
         Item item = new Item();
         item.setName("Дрель");
-        item.setRequest(request);
 
         when(userService.getUserById(1L)).thenReturn(owner);
         when(requestItemRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> itemService.createItem(item, 1L))
+        assertThatThrownBy(() -> itemService.createItem(item, 1L, 999L))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("Запрос вещи не найден");
     }
@@ -397,7 +395,6 @@ class ItemServiceUnitTest {
         item.setName("Дрель");
         item.setDescription("Аккумуляторная");
         item.setAvailable(true);
-        item.setRequest(request);
 
         Item savedItem = new Item();
         savedItem.setId(1L);
@@ -410,7 +407,7 @@ class ItemServiceUnitTest {
         when(itemRepository.save(any())).thenReturn(savedItem);
         when(answerRepository.save(any())).thenReturn(new Answer());
 
-        Item result = itemService.createItem(item, 1L);
+        Item result = itemService.createItem(item, 1L, 1L);
 
         assertThat(result.getId(), is(1L));
         assertThat(result.getName(), is("Дрель"));
@@ -429,7 +426,7 @@ class ItemServiceUnitTest {
         item.setName("Дрель");
         item.setDescription("Аккумуляторная");
         item.setAvailable(true);
-        item.setRequest(null);   // ← request = null!
+        // item.setRequest(null);   // ← УБРАТЬ!
 
         Item savedItem = new Item();
         savedItem.setId(1L);
@@ -439,7 +436,7 @@ class ItemServiceUnitTest {
         when(userService.getUserById(1L)).thenReturn(owner);
         when(itemRepository.save(any())).thenReturn(savedItem);
 
-        Item result = itemService.createItem(item, 1L);
+        Item result = itemService.createItem(item, 1L, null);  // ← добавили null
 
         assertThat(result.getId(), is(1L));
         assertThat(result.getName(), is("Дрель"));

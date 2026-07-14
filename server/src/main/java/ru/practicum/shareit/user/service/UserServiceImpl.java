@@ -3,6 +3,7 @@ package ru.practicum.shareit.user.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.shareit.exception.DuplicateEmailException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.repository.UserRepository;
@@ -31,12 +32,14 @@ public class UserServiceImpl implements UserService {
     public User createUser(User user) {
 
         if (repository.findByEmail(user.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Пользователь с таким E-mail уже существует.");
+            throw new DuplicateEmailException("Пользователь с таким E-mail уже существует.");
         }
 
         user.setRegistrationDate(Instant.now());
 
-        return repository.save(user);
+        User savedUser = repository.save(user);
+        System.out.println("Сохранен пользователь с ID: " + savedUser.getId());
+        return savedUser;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package ru.practicum.shareit.request.answers.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 @Getter
@@ -10,6 +11,8 @@ import lombok.*;
 public class AnswerDto {
     private Long id;
     private Long itemId;
+
+    @JsonProperty("name")
     private String itemName;
     private Long ownerId;
 }

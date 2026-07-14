@@ -19,4 +19,10 @@ public class ErrorHandler {
     public ErrorResponse handleAccessDenied(AccessDeniedException e) {
         return new ErrorResponse(e.getMessage());
     }
+
+    @ExceptionHandler(DuplicateEmailException.class)
+    @ResponseStatus(HttpStatus.CONFLICT) // 409
+    public ErrorResponse handleDuplicateEmail(DuplicateEmailException e) {
+        return new ErrorResponse(e.getMessage());
+    }
 }

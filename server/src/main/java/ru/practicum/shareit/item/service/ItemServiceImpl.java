@@ -1,6 +1,7 @@
 package ru.practicum.shareit.item.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.booking.repository.BookingRepository;
@@ -23,6 +24,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class ItemServiceImpl implements ItemService {
     private final ItemRepository itemRepository;
     private final UserService userService;
@@ -44,24 +46,29 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     @Transactional
-    public Item createItem(Item item, Long ownerId) {
+    public Item createItem(Item item, Long ownerId, Long requestId) {
+        log.info("Создание вещи: ownerId={}, name={}", ownerId, item.getName());
+
         User owner = userService.getUserById(ownerId);
         item.setOwner(owner);
 
-        if (item.getRequest() != null && item.getRequest().getId() != null) {
-            RequestItem requestItem = requestItemRepository.findById(item.getRequest().getId())
+        if (requestId != null) {
+            RequestItem requestItem = requestItemRepository.findById(requestId)
                     .orElseThrow(() -> new NotFoundException("Запрос вещи не найден"));
             item.setRequest(requestItem);
         }
 
         Item saved = itemRepository.save(item);
+        log.info("Вещь сохранена с ID: {}", saved.getId());
 
         if (item.getRequest() != null) {
+            log.info("Создаем ответ на запрос для requestId: {}", item.getRequest().getId());
             Answer answer = Answer.builder()
                     .request(item.getRequest())
                     .item(saved)
                     .build();
             answerRepository.save(answer);
+            log.info("Ответ создан с ID: {}", answer.getId());
         }
 
         return saved;

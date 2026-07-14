@@ -54,7 +54,7 @@ class ItemServiceImplIntegrationTest {
         item.setDescription("Аккумуляторная дрель");
         item.setAvailable(true);
 
-        Item result = itemService.createItem(item, owner.getId());
+        Item result = itemService.createItem(item, owner.getId(), null);  // ← добавили null (requestId)
 
         assertThat(result.getId(), notNullValue());
         assertThat(result.getName(), is("Дрель"));

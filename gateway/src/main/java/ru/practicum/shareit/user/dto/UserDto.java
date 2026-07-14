@@ -9,6 +9,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class UserDto {
+    private Long id;
+
     @NotBlank(groups = OnCreate.class, message = "Имя не может быть пустым")
     @Size(min = 1, max = 100, groups = {OnCreate.class, OnUpdate.class},
             message = "Имя должно быть от 1 до 100 символов")

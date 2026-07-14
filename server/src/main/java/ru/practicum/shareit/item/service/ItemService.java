@@ -10,7 +10,7 @@ public interface ItemService {
 
     Item findItemById(Long itemId);
 
-    Item createItem(Item item, Long ownerId);
+    Item createItem(Item item, Long ownerId, Long requestId);
 
     Item updateItem(Item newItemData, Long itemId, Long ownerId);
 

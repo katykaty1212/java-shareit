@@ -1,6 +1,7 @@
 package ru.practicum.shareit.item.controller;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.booking.mapper.BookingMapper;
 import ru.practicum.shareit.booking.repository.BookingRepository;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/items")
 @RequiredArgsConstructor
+@Slf4j
 public class ItemController {
 
     private final ItemService itemService;
@@ -46,8 +48,9 @@ public class ItemController {
     @PostMapping
     public ItemResponseDto createNewItem(@RequestBody ItemRequestDto dto,
                                          @RequestHeader("X-Sharer-User-Id") Long ownerId) {
+        log.info("Создание вещи: name={}, requestId={}", dto.getName(), dto.getRequestId());
         Item item = itemMapper.mapToItem(dto, null);
-        Item created = itemService.createItem(item, ownerId);
+        Item created = itemService.createItem(item, ownerId, dto.getRequestId());
         return itemMapper.mapToDto(created);
     }
 

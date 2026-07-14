@@ -11,6 +11,7 @@ import java.time.format.DateTimeFormatter;
 @Mapper(componentModel = "spring")
 public interface UserMapperMapstruct {
 
+    @Mapping(target = "id", source = "id")
     @Mapping(target = "registrationDate",
             source = "registrationDate",
             qualifiedByName = "instantToString")

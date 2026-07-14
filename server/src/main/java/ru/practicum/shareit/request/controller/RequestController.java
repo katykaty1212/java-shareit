@@ -60,6 +60,7 @@ public class RequestController {
                 .toList();
 
         dto.setAnswers(answers);
+        dto.setItems(answers);
         return dto;
     }
 }

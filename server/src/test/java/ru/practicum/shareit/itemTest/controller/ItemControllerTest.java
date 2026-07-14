@@ -102,7 +102,7 @@ class ItemControllerTest {
     @Test
     void createItem_shouldReturnItem() throws Exception {
         when(itemMapper.mapToItem(any(ItemRequestDto.class), isNull())).thenReturn(item);
-        when(itemService.createItem(any(Item.class), eq(1L))).thenReturn(item);
+        when(itemService.createItem(any(Item.class), eq(1L), isNull())).thenReturn(item);  // ← добавили isNull()
         when(itemMapper.mapToDto(item)).thenReturn(responseDto);
 
         mvc.perform(post("/items")
