@@ -73,6 +73,7 @@ class BookingControllerTest {
 
         booking = new Booking();
         booking.setId(10L);
+        responseDto.setStatus("WAITING");
     }
 
     @Test

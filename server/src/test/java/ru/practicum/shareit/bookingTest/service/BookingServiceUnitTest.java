@@ -423,6 +423,7 @@ class BookingServiceUnitTest {
         booking2.setStart(LocalDateTime.now().plusDays(1));
         booking2.setEnd(LocalDateTime.now().plusDays(3));
 
+        when(itemRepository.findAllByOwnerId(ownerId)).thenReturn(List.of(new Item()));
         when(bookingRepository.findAllByOwnerIdOrderByStartDesc(ownerId))
                 .thenReturn(List.of(booking1, booking2));
 
@@ -452,6 +453,7 @@ class BookingServiceUnitTest {
         future.setStart(now.plusDays(2));
         future.setEnd(now.plusDays(4));
 
+        when(itemRepository.findAllByOwnerId(ownerId)).thenReturn(List.of(new Item()));
         when(bookingRepository.findAllByOwnerIdOrderByStartDesc(ownerId))
                 .thenReturn(List.of(current, past, future));
 

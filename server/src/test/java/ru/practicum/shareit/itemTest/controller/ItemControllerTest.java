@@ -23,6 +23,7 @@ import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.model.ItemRequestDto;
 import ru.practicum.shareit.item.model.ItemResponseDto;
 import ru.practicum.shareit.item.service.ItemService;
+import ru.practicum.shareit.user.model.User;
 
 import java.util.List;
 import java.util.Optional;
@@ -90,9 +91,14 @@ class ItemControllerTest {
         commentDto.setText("Отличная вещь!");
         commentDto.setAuthorName("Иван");
 
+        User owner = new User();
+        owner.setId(1L);
+
         item = new Item();
         item.setId(1L);
         item.setName("Дрель");
+        item.setOwner(owner);
+
 
         comment = new Comment();
         comment.setId(1L);
@@ -116,10 +122,15 @@ class ItemControllerTest {
 
     @Test
     void getItemById_shouldReturnItem() throws Exception {
+        User owner = new User();
+        owner.setId(1L);
+        item.setOwner(owner);  // ← ДОБАВИТЬ!
+
         when(itemService.findItemById(1L)).thenReturn(item);
         when(itemMapper.mapToDto(item)).thenReturn(responseDto);
 
-        mvc.perform(get("/items/1"))
+        mvc.perform(get("/items/1")
+                        .header("X-Sharer-User-Id", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.name", is("Дрель")));
@@ -137,9 +148,12 @@ class ItemControllerTest {
         when(itemService.addComment(eq(1L), eq(2L), eq("Отличная вещь!"))).thenReturn(comment);
         when(commentMapper.toDto(comment)).thenReturn(commentDto);
 
+        CommentDto requestDto = new CommentDto();
+        requestDto.setText("Отличная вещь!");
+
         mvc.perform(post("/items/1/comment")
                         .header("X-Sharer-User-Id", 2L)
-                        .content("Отличная вещь!")
+                        .content(mapper.writeValueAsString(requestDto))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(1)))
@@ -150,9 +164,13 @@ class ItemControllerTest {
     void findAllItemsByUser_shouldCallEnrich() throws Exception {
         Long ownerId = 1L;
 
+        User owner = new User();
+        owner.setId(1L);
+
         Item item = new Item();
         item.setId(1L);
         item.setName("Дрель");
+        item.setOwner(owner);  // ← ДОБАВИТЬ!
 
         when(itemService.findAllItemsByUser(ownerId)).thenReturn(List.of(item));
         when(itemMapper.mapToDto(any(Item.class))).thenReturn(new ItemResponseDto());
@@ -173,9 +191,13 @@ class ItemControllerTest {
     void findItemById_shouldCallEnrich() throws Exception {
         Long itemId = 1L;
 
+        User owner = new User();
+        owner.setId(1L);
+
         Item item = new Item();
         item.setId(itemId);
         item.setName("Дрель");
+        item.setOwner(owner);  // ← ДОБАВИТЬ!
 
         when(itemService.findItemById(itemId)).thenReturn(item);
         when(itemMapper.mapToDto(any(Item.class))).thenReturn(new ItemResponseDto());
@@ -185,7 +207,8 @@ class ItemControllerTest {
                 .thenReturn(Optional.empty());
         when(commentRepository.findAllByItemId(anyLong())).thenReturn(List.of());
 
-        mvc.perform(get("/items/" + itemId))
+        mvc.perform(get("/items/1")
+                        .header("X-Sharer-User-Id", 1L))
                 .andExpect(status().isOk());
 
         verify(itemService, times(1)).findItemById(itemId);
@@ -208,9 +231,12 @@ class ItemControllerTest {
         when(itemService.addComment(eq(itemId), eq(userId), eq(text))).thenReturn(comment);
         when(commentMapper.toDto(comment)).thenReturn(commentDto);
 
+        CommentDto requestDto = new CommentDto();
+        requestDto.setText(text);
+
         mvc.perform(post("/items/" + itemId + "/comment")
                         .header("X-Sharer-User-Id", userId)
-                        .content(text)
+                        .content(mapper.writeValueAsString(requestDto))  // ← ОТПРАВЛЯЕМ ОБЪЕКТ!
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
 
@@ -221,9 +247,13 @@ class ItemControllerTest {
     void findItemById_shouldEnrichWithBookingsAndComments() throws Exception {
         Long itemId = 1L;
 
+        User owner = new User();
+        owner.setId(1L);
+
         Item item = new Item();
         item.setId(itemId);
         item.setName("Дрель");
+        item.setOwner(owner);  // ← ДОБАВИТЬ!
 
         when(itemService.findItemById(itemId)).thenReturn(item);
         when(itemMapper.mapToDto(any(Item.class))).thenReturn(new ItemResponseDto());
@@ -233,7 +263,8 @@ class ItemControllerTest {
                 .thenReturn(Optional.empty());
         when(commentRepository.findAllByItemId(anyLong())).thenReturn(List.of());
 
-        mvc.perform(get("/items/" + itemId))
+        mvc.perform(get("/items/" + itemId)
+                        .header("X-Sharer-User-Id", 1L))  // ← ДОБАВИТЬ!
                 .andExpect(status().isOk());
     }
 
@@ -241,23 +272,29 @@ class ItemControllerTest {
     void searchItems_shouldReturnList() throws Exception {
         String text = "дрель";
 
+        User owner = new User();
+        owner.setId(1L);
+
         Item item = new Item();
         item.setId(1L);
         item.setName("Дрель");
         item.setDescription("Аккумуляторная");
         item.setAvailable(true);
+        item.setOwner(owner);  // ← ДОБАВИТЬ!
 
         ItemResponseDto responseDto = new ItemResponseDto();
         responseDto.setId(1L);
         responseDto.setName("Дрель");
         responseDto.setDescription("Аккумуляторная");
         responseDto.setAvailable(true);
+        responseDto.setOwnerId(1L);  // ← ДОБАВИТЬ!
 
         when(itemService.searchItems(text)).thenReturn(List.of(item));
         when(itemMapper.mapToDto(any(Item.class))).thenReturn(responseDto);
 
         mvc.perform(get("/items/search")
-                        .param("text", text))
+                        .param("text", text)
+                        .header("X-Sharer-User-Id", 1L))  // ← ДОБАВИТЬ!
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()", is(1)))
                 .andExpect(jsonPath("$[0].id", is(1)))
