@@ -1,0 +1,183 @@
+package ru.practicum.shareit.item.service;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.shareit.booking.model.Booking;
+import ru.practicum.shareit.booking.repository.BookingRepository;
+import ru.practicum.shareit.exception.AccessDeniedException;
+import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.item.comments.mapper.CommentMapper;
+import ru.practicum.shareit.item.comments.repository.CommentRepository;
+import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.item.comments.model.Comment;
+import ru.practicum.shareit.item.model.ItemWithDetails;
+import ru.practicum.shareit.item.repository.ItemRepository;
+import ru.practicum.shareit.request.answers.model.Answer;
+import ru.practicum.shareit.request.answers.repository.AnswerRepository;
+import ru.practicum.shareit.request.model.RequestItem;
+import ru.practicum.shareit.request.repository.RequestItemRepository;
+import ru.practicum.shareit.user.model.User;
+import ru.practicum.shareit.user.service.UserService;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+@Slf4j
+public class ItemServiceImpl implements ItemService {
+    private final ItemRepository itemRepository;
+    private final UserService userService;
+    private final BookingRepository bookingRepository;
+    private final CommentRepository commentRepository;
+    private final RequestItemRepository requestItemRepository;
+    private final AnswerRepository answerRepository;
+    private final CommentMapper commentMapper;
+
+    @Override
+    public List<Item> findAllItemsByUser(Long ownerId) {
+        return itemRepository.findAllByOwnerId(ownerId);
+    }
+
+    public List<ItemWithDetails> findAllItemsByUserWithDetails(Long ownerId) {
+        log.info("Получение всех вещей пользователя {} с деталями", ownerId);
+
+        List<Item> items = itemRepository.findAllByOwnerId(ownerId);
+
+        if (items.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> itemIds = items.stream()
+                .map(Item::getId)
+                .toList();
+
+        List<Booking> bookings = bookingRepository.findAllByItemIdIn(itemIds);
+
+        List<Comment> comments = commentRepository.findAllByItemIdIn(itemIds);
+
+        Map<Long, List<Booking>> bookingsByItem = bookings.stream()
+                .collect(Collectors.groupingBy(b -> b.getItem().getId()));
+
+        Map<Long, List<Comment>> commentsByItem = comments.stream()
+                .collect(Collectors.groupingBy(c -> c.getItem().getId()));
+
+
+        return items.stream()
+                .map(item -> new ItemWithDetails(
+                        item,
+                        bookingsByItem.getOrDefault(item.getId(), List.of()),
+                        commentsByItem.getOrDefault(item.getId(), List.of())
+                ))
+                .toList();
+    }
+
+    @Override
+    public Item findItemById(Long itemId) {
+        return itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Вещь с ID" + itemId + "не найдена."));
+    }
+
+    @Override
+    @Transactional
+    public Item createItem(Item item, Long ownerId, Long requestId) {
+        log.info("Создание вещи: ownerId={}, name={}", ownerId, item.getName());
+
+        User owner = userService.getUserById(ownerId);
+        item.setOwner(owner);
+
+        if (requestId != null) {
+            RequestItem requestItem = requestItemRepository.findById(requestId)
+                    .orElseThrow(() -> new NotFoundException("Запрос вещи не найден"));
+            item.setRequest(requestItem);
+        }
+
+        Item saved = itemRepository.save(item);
+        log.info("Вещь сохранена с ID: {}", saved.getId());
+
+        if (item.getRequest() != null) {
+            log.info("Создаем ответ на запрос для requestId: {}", item.getRequest().getId());
+            Answer answer = Answer.builder()
+                    .request(item.getRequest())
+                    .item(saved)
+                    .build();
+            answerRepository.save(answer);
+            log.info("Ответ создан с ID: {}", answer.getId());
+        }
+
+        return saved;
+    }
+
+    @Override
+    @Transactional
+    public Item updateItem(Item newItemData, Long itemId, Long ownerId) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Вещь с ID " + itemId + " не найдена."));
+
+        if (!item.getOwner().getId().equals(ownerId)) {
+            throw new AccessDeniedException("Редактировать можно только свои вещи");
+        }
+
+        if (newItemData.getName() != null) {
+            item.setName(newItemData.getName());
+        }
+        if (newItemData.getDescription() != null) {
+            item.setDescription(newItemData.getDescription());
+        }
+        if (newItemData.getAvailable() != null) {
+            item.setAvailable(newItemData.getAvailable());
+        }
+
+        return itemRepository.save(item);
+    }
+
+    @Override
+    @Transactional
+    public void deleteItem(Long itemId, Long ownerId) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Вещь с ID " + itemId + " не найдена."));
+
+        if (!item.getOwner().getId().equals(ownerId)) {
+            throw new AccessDeniedException("Удалять можно только свои вещи");
+        }
+
+        itemRepository.deleteById(itemId);
+    }
+
+    @Override
+    public List<Item> searchItems(String text) {
+        return itemRepository.search(text);
+    }
+
+    @Override
+    @Transactional
+    public Comment addComment(Long itemId, Long userId, String text) {
+        log.info("itemId={}, userId={}", itemId, userId);
+
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Вещь с ID " + itemId + " не найдена."));
+
+        User author = userService.getUserById(userId);
+        log.info("Автор найден: id={}", author.getId());
+
+        LocalDateTime now = LocalDateTime.now();
+        log.info("Текущее время: {}", now);
+
+        Optional<Booking> booking = bookingRepository.findFirstByItemIdAndBookerIdAndEndBefore(itemId, userId, now);
+        if (booking.isEmpty()) {
+            log.warn("Бронирование НЕ НАЙДЕНО!");
+            throw new IllegalArgumentException("Пользователь не брал эту вещь в аренду");
+        }
+        log.info("Бронирование найдено: id={}", booking.get().getId());
+
+        Comment comment = commentMapper.toComment(text, item, author);
+
+        return commentRepository.save(comment);
+    }
+}

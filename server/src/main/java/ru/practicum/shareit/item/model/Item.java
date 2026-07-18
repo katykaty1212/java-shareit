@@ -1,0 +1,43 @@
+package ru.practicum.shareit.item.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import ru.practicum.shareit.request.model.RequestItem;
+import ru.practicum.shareit.user.model.User;
+
+import java.util.HashSet;
+import java.util.Set;
+
+@Entity
+@Table(name = "items")
+@Getter
+@Setter
+@ToString
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+public class Item {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+
+    private String description;
+    private Boolean available;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private User owner;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "request_id")
+    private RequestItem request;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "tags", joinColumns = @JoinColumn(name = "item_id"))
+    @Column(name = "name")
+    private Set<String> tags = new HashSet<>();
+
+}

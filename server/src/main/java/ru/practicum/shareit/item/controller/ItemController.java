@@ -1,0 +1,153 @@
+package ru.practicum.shareit.item.controller;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
+import ru.practicum.shareit.booking.mapper.BookingMapper;
+import ru.practicum.shareit.booking.model.Booking;
+import ru.practicum.shareit.booking.repository.BookingRepository;
+import ru.practicum.shareit.item.comments.mapper.CommentMapper;
+import ru.practicum.shareit.item.comments.model.Comment;
+import ru.practicum.shareit.item.comments.model.CommentRequestDto;
+import ru.practicum.shareit.item.comments.repository.CommentRepository;
+import ru.practicum.shareit.item.mapper.ItemMapperMapstruct;
+import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.item.model.ItemRequestDto;
+import ru.practicum.shareit.item.model.ItemResponseDto;
+import ru.practicum.shareit.item.comments.model.CommentDto;
+import ru.practicum.shareit.item.model.ItemWithDetails;
+import ru.practicum.shareit.item.service.ItemService;
+
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/items")
+@RequiredArgsConstructor
+@Slf4j
+public class ItemController {
+
+    private final ItemService itemService;
+    private final ItemMapperMapstruct itemMapper;
+    private final CommentMapper commentMapper;
+    private final BookingRepository bookingRepository;
+    private final BookingMapper bookingMapper;
+    private final CommentRepository commentRepository;
+
+    @GetMapping
+    public List<ItemResponseDto> findAllItemsByUser(@RequestHeader("X-Sharer-User-Id") Long ownerId) {
+        log.info("GET /items - все предметы пользователя {}", ownerId);
+
+        List<ItemWithDetails> itemsWithDetails = itemService.findAllItemsByUserWithDetails(ownerId);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        return itemsWithDetails.stream()
+                .map(data -> buildItemResponseDto(
+                        data.getItem(),
+                        data.getBookings(),
+                        data.getComments(),
+                        now,
+                        ownerId
+                ))
+                .toList();
+    }
+
+    @GetMapping("/{itemId}")
+    public ItemResponseDto findItemById(@PathVariable Long itemId,
+                                        @RequestHeader("X-Sharer-User-Id") Long userId) {
+        Item item = itemService.findItemById(itemId);
+        return enrichWithBookingsAndComments(item, userId);
+    }
+
+    @PostMapping
+    public ItemResponseDto createNewItem(@RequestBody ItemRequestDto dto,
+                                         @RequestHeader("X-Sharer-User-Id") Long ownerId) {
+        log.info("Создание вещи: name={}, requestId={}", dto.getName(), dto.getRequestId());
+        Item item = itemMapper.mapToItem(dto, null);
+        Item created = itemService.createItem(item, ownerId, dto.getRequestId());
+        return itemMapper.mapToDto(created);
+    }
+
+    @PatchMapping("/{itemId}")
+    public ItemResponseDto updateItem(@RequestBody ItemRequestDto dto,
+                                      @PathVariable Long itemId,
+                                      @RequestHeader("X-Sharer-User-Id") Long ownerId) {
+        Item newItemData = itemMapper.mapToItem(dto, null);
+        Item updated = itemService.updateItem(newItemData, itemId, ownerId);
+        return itemMapper.mapToDto(updated);
+    }
+
+    @DeleteMapping("/{itemId}")
+    public void deleteItem(@PathVariable Long itemId,
+                           @RequestHeader("X-Sharer-User-Id") Long ownerId) {
+        itemService.deleteItem(itemId, ownerId);
+    }
+
+    @GetMapping("/search")
+    public List<ItemResponseDto> searchItems(@RequestParam String text) {
+        return itemService.searchItems(text).stream()
+                .map(itemMapper::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    @PostMapping("/{itemId}/comment")
+    public CommentDto addComment(@PathVariable Long itemId,
+                                 @RequestHeader("X-Sharer-User-Id") Long userId,
+                                 @RequestBody CommentRequestDto commentRequestDtoDto) {
+        Comment comment = itemService.addComment(itemId, userId, commentRequestDtoDto.getText());
+        return commentMapper.toDto(comment);
+    }
+
+    private ItemResponseDto enrichWithBookingsAndComments(Item item, Long userId) {
+        LocalDateTime now = LocalDateTime.now();
+        ItemResponseDto dto = itemMapper.mapToDto(item);
+
+        if (item.getOwner().getId().equals(userId)) {
+            bookingRepository.findFirstByItemIdAndEndBeforeOrderByEndDesc(item.getId(), now)
+                    .ifPresent(booking -> dto.setLastBooking(bookingMapper.toDto(booking)));
+
+            bookingRepository.findFirstByItemIdAndStartAfterOrderByStartAsc(item.getId(), now)
+                    .ifPresent(booking -> dto.setNextBooking(bookingMapper.toDto(booking)));
+        }
+        dto.setComments(
+                commentRepository.findAllByItemId(item.getId()).stream()
+                        .map(commentMapper::toDto)
+                        .toList()
+        );
+
+        return dto;
+    }
+
+    private ItemResponseDto buildItemResponseDto(Item item,
+                                                 List<Booking> bookings,
+                                                 List<Comment> comments,
+                                                 LocalDateTime now,
+                                                 Long userId) {
+        ItemResponseDto dto = itemMapper.mapToDto(item);
+
+        // Только владелец видит бронирования
+        if (item.getOwner().getId().equals(userId)) {
+            // Последнее завершенное бронирование
+            bookings.stream()
+                    .filter(b -> b.getEnd().isBefore(now))
+                    .max(Comparator.comparing(Booking::getEnd))
+                    .ifPresent(b -> dto.setLastBooking(bookingMapper.toDto(b)));
+
+            // Следующее будущее бронирование
+            bookings.stream()
+                    .filter(b -> b.getStart().isAfter(now))
+                    .min(Comparator.comparing(Booking::getStart))
+                    .ifPresent(b -> dto.setNextBooking(bookingMapper.toDto(b)));
+        }
+
+        // Комментарии
+        dto.setComments(comments.stream()
+                .map(commentMapper::toDto)
+                .toList());
+
+        return dto;
+    }
+}
