@@ -174,4 +174,143 @@ class RequestItemControllerTest {
                 .andExpect(jsonPath("$.id", is(1)))
                 .andExpect(jsonPath("$.description", is("Нужна дрель")));
     }
+
+    @Test
+    void enrichWithAnswers_shouldAddAnswersToResponse() throws Exception {
+        Long requestId = 1L;
+
+        User requestor = new User();
+        requestor.setId(1L);
+
+        User owner = new User();
+        owner.setId(2L);
+
+        Item item = new Item();
+        item.setId(1L);
+        item.setName("Дрель");
+        item.setOwner(owner);
+
+        RequestItem requestItem = new RequestItem();
+        requestItem.setId(requestId);
+        requestItem.setDescription("Нужна аккумуляторная дрель");
+        requestItem.setRequestor(requestor);
+
+        Answer answer = new Answer();
+        answer.setId(1L);
+        answer.setRequest(requestItem);
+        answer.setItem(item);
+
+        requestItem.setAnswers(List.of(answer));
+
+        RequestItemResponseDto responseDto = RequestItemResponseDto.builder()
+                .id(requestId)
+                .description("Нужна аккумуляторная дрель")
+                .requestorId(1L)
+                .answers(List.of())
+                .items(List.of())
+                .build();
+
+        when(requestItemService.getRequestItemById(requestId)).thenReturn(requestItem);
+        when(mapper.mapToDto(any(RequestItem.class))).thenReturn(responseDto);
+
+        mvc.perform(get("/requests/{id}", requestId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.description", is("Нужна аккумуляторная дрель")))
+                .andExpect(jsonPath("$.answers.length()", is(1)))
+                .andExpect(jsonPath("$.answers[0].id", is(1)))
+                .andExpect(jsonPath("$.answers[0].itemId", is(1)))
+                .andExpect(jsonPath("$.answers[0].name", is("Дрель")))
+                .andExpect(jsonPath("$.answers[0].ownerId", is(2)))
+                .andExpect(jsonPath("$.items.length()", is(1)));
+    }
+
+    @Test
+    void enrichWithAnswers_shouldHandleRequestWithoutAnswers() throws Exception {
+        Long requestId = 2L;
+
+        User requestor = new User();
+        requestor.setId(1L);
+
+        RequestItem requestWithoutAnswers = new RequestItem();
+        requestWithoutAnswers.setId(requestId);
+        requestWithoutAnswers.setDescription("Запрос без ответов");
+        requestWithoutAnswers.setRequestor(requestor);
+        requestWithoutAnswers.setAnswers(List.of());
+
+        RequestItemResponseDto dtoWithoutAnswers = RequestItemResponseDto.builder()
+                .id(requestId)
+                .description("Запрос без ответов")
+                .answers(List.of())
+                .items(List.of())
+                .build();
+
+        when(requestItemService.getRequestItemById(requestId)).thenReturn(requestWithoutAnswers);
+        when(mapper.mapToDto(requestWithoutAnswers)).thenReturn(dtoWithoutAnswers);
+
+        mvc.perform(get("/requests/{id}", requestId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(2)))
+                .andExpect(jsonPath("$.answers.length()", is(0)))
+                .andExpect(jsonPath("$.items.length()", is(0)));
+    }
+
+    @Test
+    void enrichWithAnswers_shouldHandleMultipleAnswers() throws Exception {
+        Long requestId = 1L;
+
+        User requestor = new User();
+        requestor.setId(1L);
+
+        User owner1 = new User();
+        owner1.setId(2L);
+
+        User owner2 = new User();
+        owner2.setId(3L);
+
+        Item item1 = new Item();
+        item1.setId(1L);
+        item1.setName("Дрель");
+        item1.setOwner(owner1);
+
+        Item item2 = new Item();
+        item2.setId(2L);
+        item2.setName("Перфоратор");
+        item2.setOwner(owner2);
+
+        RequestItem requestItem = new RequestItem();
+        requestItem.setId(requestId);
+        requestItem.setDescription("Нужна аккумуляторная дрель");
+        requestItem.setRequestor(requestor);
+
+        Answer answer1 = new Answer();
+        answer1.setId(1L);
+        answer1.setRequest(requestItem);
+        answer1.setItem(item1);
+
+        Answer answer2 = new Answer();
+        answer2.setId(2L);
+        answer2.setRequest(requestItem);
+        answer2.setItem(item2);
+
+        requestItem.setAnswers(List.of(answer1, answer2));
+
+        RequestItemResponseDto responseDto = RequestItemResponseDto.builder()
+                .id(requestId)
+                .description("Нужна аккумуляторная дрель")
+                .requestorId(1L)
+                .answers(List.of())
+                .items(List.of())
+                .build();
+
+        when(requestItemService.getRequestItemById(requestId)).thenReturn(requestItem);
+        when(mapper.mapToDto(requestItem)).thenReturn(responseDto);
+
+        mvc.perform(get("/requests/{id}", requestId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.answers.length()", is(2)))
+                .andExpect(jsonPath("$.answers[0].id", is(1)))
+                .andExpect(jsonPath("$.answers[1].id", is(2)))
+                .andExpect(jsonPath("$.items.length()", is(2)));
+    }
 }

@@ -13,6 +13,7 @@ import ru.practicum.shareit.item.comments.mapper.CommentMapper;
 import ru.practicum.shareit.item.comments.model.Comment;
 import ru.practicum.shareit.item.comments.repository.CommentRepository;
 import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.item.model.ItemWithDetails;
 import ru.practicum.shareit.item.repository.ItemRepository;
 import ru.practicum.shareit.item.service.ItemServiceImpl;
 import ru.practicum.shareit.request.answers.model.Answer;
@@ -22,6 +23,7 @@ import ru.practicum.shareit.request.repository.RequestItemRepository;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -449,4 +451,89 @@ class ItemServiceUnitTest {
         verify(requestItemRepository, never()).findById(any());
         verify(answerRepository, never()).save(any());
     }
+
+    @Test
+    void findAllItemsByUserWithDetails_shouldReturnItemsWithBookingsAndComments() {
+        Long ownerId = 1L;
+        LocalDateTime now = LocalDateTime.now();
+
+        User owner = new User();
+        owner.setId(ownerId);
+
+        Item item1 = new Item();
+        item1.setId(1L);
+        item1.setName("Дрель");
+        item1.setOwner(owner);
+
+        Item item2 = new Item();
+        item2.setId(2L);
+        item2.setName("Молоток");
+        item2.setOwner(owner);
+
+        List<Item> items = List.of(item1, item2);
+
+        Booking booking1 = new Booking();
+        booking1.setId(1L);
+        booking1.setItem(item1);
+
+        Booking booking2 = new Booking();
+        booking2.setId(2L);
+        booking2.setItem(item1);
+
+        Comment comment1 = new Comment();
+        comment1.setId(1L);
+        comment1.setItem(item1);
+
+        Comment comment2 = new Comment();
+        comment2.setId(2L);
+        comment2.setItem(item2);
+
+        when(itemRepository.findAllByOwnerId(ownerId)).thenReturn(items);
+        when(bookingRepository.findAllByItemIdIn(anyList())).thenReturn(List.of(booking1, booking2));
+        when(commentRepository.findAllByItemIdIn(anyList())).thenReturn(List.of(comment1, comment2));
+
+        List<ItemWithDetails> result = itemService.findAllItemsByUserWithDetails(ownerId);
+
+        assertThat(result, hasSize(2));
+        assertThat(result.get(0).getItem().getId(), is(1L));
+        assertThat(result.get(0).getBookings(), hasSize(2));
+        assertThat(result.get(0).getComments(), hasSize(1));
+
+        verify(itemRepository).findAllByOwnerId(ownerId);
+        verify(bookingRepository).findAllByItemIdIn(anyList());
+        verify(commentRepository).findAllByItemIdIn(anyList());
+    }
+
+    @Test
+    void findAllItemsByUserWithDetails_shouldReturnEmptyList_whenNoItems() {
+        Long ownerId = 999L;
+
+        when(itemRepository.findAllByOwnerId(ownerId)).thenReturn(List.of());
+
+        List<ItemWithDetails> result = itemService.findAllItemsByUserWithDetails(ownerId);
+
+        assertTrue(result.isEmpty());
+        verify(bookingRepository, never()).findAllByItemIdIn(any());
+        verify(commentRepository, never()).findAllByItemIdIn(any());
+    }
+
+    @Test
+    void findAllItemsByUserWithDetails_shouldHandleItemsWithoutDetails() {
+        Long ownerId = 1L;
+
+        Item itemWithoutDetails = new Item();
+        itemWithoutDetails.setId(3L);
+        itemWithoutDetails.setName("Без деталей");
+
+        when(itemRepository.findAllByOwnerId(ownerId)).thenReturn(List.of(itemWithoutDetails));
+        when(bookingRepository.findAllByItemIdIn(anyList())).thenReturn(List.of());
+        when(commentRepository.findAllByItemIdIn(anyList())).thenReturn(List.of());
+
+        List<ItemWithDetails> result = itemService.findAllItemsByUserWithDetails(ownerId);
+
+        assertThat(result, hasSize(1));
+        assertThat(result.get(0).getBookings(), empty());
+        assertThat(result.get(0).getComments(), empty());
+    }
+
 }

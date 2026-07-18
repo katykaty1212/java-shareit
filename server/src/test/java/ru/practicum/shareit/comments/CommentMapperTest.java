@@ -84,4 +84,65 @@ class CommentMapperTest {
         assertEquals(100L, dto.getId());
         assertEquals("Отличная вещь, всё работает!", dto.getText());
     }
+
+    @Test
+    void toComment_shouldCreateCommentFromTextItemAndAuthor() {
+        String text = "Отличная вещь!";
+        Item item = new Item();
+        item.setId(1L);
+        User author = new User();
+        author.setId(1L);
+
+        Comment comment = mapper.toComment(text, item, author);
+
+        assertNotNull(comment);
+        assertNull(comment.getId());
+        assertEquals(text, comment.getText());
+        assertEquals(item, comment.getItem());
+        assertEquals(author, comment.getAuthor());
+        assertNotNull(comment.getCreated());
+    }
+
+    @Test
+    void toComment_shouldHandleNullText() {
+        Item item = new Item();
+        item.setId(1L);
+        User author = new User();
+        author.setId(1L);
+
+        Comment comment = mapper.toComment(null, item, author);
+
+        assertNotNull(comment);
+        assertNull(comment.getText());
+        assertEquals(item, comment.getItem());
+        assertEquals(author, comment.getAuthor());
+    }
+
+    @Test
+    void toComment_shouldHandleNullItem() {
+        String text = "Отличная вещь!";
+        User author = new User();
+        author.setId(1L);
+
+        Comment comment = mapper.toComment(text, null, author);
+
+        assertNotNull(comment);
+        assertEquals(text, comment.getText());
+        assertNull(comment.getItem());
+        assertEquals(author, comment.getAuthor());
+    }
+
+    @Test
+    void toComment_shouldHandleNullAuthor() {
+        String text = "Отличная вещь!";
+        Item item = new Item();
+        item.setId(1L);
+
+        Comment comment = mapper.toComment(text, item, null);
+
+        assertNotNull(comment);
+        assertEquals(text, comment.getText());
+        assertEquals(item, comment.getItem());
+        assertNull(comment.getAuthor());
+    }
 }
