@@ -6,6 +6,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.request.answers.repository.AnswerRepository;
 import ru.practicum.shareit.request.model.RequestItem;
 import ru.practicum.shareit.request.repository.RequestItemRepository;
 import ru.practicum.shareit.request.service.RequestItemServiceImpl;
@@ -29,6 +30,9 @@ public class RequestItemTest {
 
     @Mock
     private UserService userService;
+
+    @Mock
+    private AnswerRepository answerRepository;
 
     @InjectMocks
     private RequestItemServiceImpl requestItemService;
@@ -80,7 +84,9 @@ public class RequestItemTest {
                 .requestor(otherUser)
                 .build();
 
-        when(requestItemRepository.findAll()).thenReturn(List.of(item1, item2));
+        when(requestItemRepository.findAllByRequestorIdNotOrderByCreatedDesc(currentUser.getId()))
+                .thenReturn(List.of(item1, item2));
+        when(answerRepository.findByRequestIdIn(anyList())).thenReturn(List.of());
 
         List<RequestItem> result = requestItemService.getAllRequestItemAllUsers(currentUser.getId());
 
@@ -88,7 +94,8 @@ public class RequestItemTest {
         assertThat(result.get(0).getDescription(), is("Запрос дрели."));
         assertThat(result.get(1).getDescription(), is("Запрос молотка."));
 
-        verify(requestItemRepository, times(1)).findAll();
+        verify(requestItemRepository, times(1)).
+                findAllByRequestorIdNotOrderByCreatedDesc(currentUser.getId());
     }
 
     @Test
@@ -139,6 +146,8 @@ public class RequestItemTest {
 
         when(requestItemRepository.findAllByRequestorIdOrderByCreatedDesc(1L))
                 .thenReturn(List.of(request1, request2));
+
+        when(answerRepository.findByRequestIdIn(anyList())).thenReturn(List.of());
 
         List<RequestItem> result = requestItemService.getAllRequestItemByOwner(1L);
 

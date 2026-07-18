@@ -183,6 +183,8 @@ class BookingServiceUnitTest {
         booking.setId(10L);
         booking.setItem(item);
         booking.setStatus(BookingStatus.WAITING);
+        booking.setStart(LocalDateTime.now().plusDays(1));
+        booking.setEnd(LocalDateTime.now().plusDays(3));
 
         when(bookingRepository.findById(10L)).thenReturn(Optional.of(booking));
         when(bookingRepository.save(booking)).thenReturn(booking);
@@ -204,6 +206,8 @@ class BookingServiceUnitTest {
         booking.setId(10L);
         booking.setItem(item);
         booking.setStatus(BookingStatus.WAITING);
+        booking.setStart(LocalDateTime.now().plusDays(1));
+        booking.setEnd(LocalDateTime.now().plusDays(3));
 
         when(bookingRepository.findById(10L)).thenReturn(Optional.of(booking));
         when(bookingRepository.save(booking)).thenReturn(booking);

@@ -4,18 +4,22 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.booking.mapper.BookingMapper;
+import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.item.comments.mapper.CommentMapper;
 import ru.practicum.shareit.item.comments.model.Comment;
+import ru.practicum.shareit.item.comments.model.CommentRequestDto;
 import ru.practicum.shareit.item.comments.repository.CommentRepository;
 import ru.practicum.shareit.item.mapper.ItemMapperMapstruct;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.model.ItemRequestDto;
 import ru.practicum.shareit.item.model.ItemResponseDto;
 import ru.practicum.shareit.item.comments.model.CommentDto;
+import ru.practicum.shareit.item.model.ItemWithDetails;
 import ru.practicum.shareit.item.service.ItemService;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,9 +38,21 @@ public class ItemController {
 
     @GetMapping
     public List<ItemResponseDto> findAllItemsByUser(@RequestHeader("X-Sharer-User-Id") Long ownerId) {
-        return itemService.findAllItemsByUser(ownerId).stream()
-                .map(item -> enrichWithBookingsAndComments(item, ownerId))
-                .collect(Collectors.toList());
+        log.info("GET /items - все предметы пользователя {}", ownerId);
+
+        List<ItemWithDetails> itemsWithDetails = itemService.findAllItemsByUserWithDetails(ownerId);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        return itemsWithDetails.stream()
+                .map(data -> buildItemResponseDto(
+                        data.getItem(),
+                        data.getBookings(),
+                        data.getComments(),
+                        now,
+                        ownerId
+                ))
+                .toList();
     }
 
     @GetMapping("/{itemId}")
@@ -80,8 +96,8 @@ public class ItemController {
     @PostMapping("/{itemId}/comment")
     public CommentDto addComment(@PathVariable Long itemId,
                                  @RequestHeader("X-Sharer-User-Id") Long userId,
-                                 @RequestBody CommentDto commentDto) {
-        Comment comment = itemService.addComment(itemId, userId, commentDto.getText());
+                                 @RequestBody CommentRequestDto commentRequestDtoDto) {
+        Comment comment = itemService.addComment(itemId, userId, commentRequestDtoDto.getText());
         return commentMapper.toDto(comment);
     }
 
@@ -101,6 +117,36 @@ public class ItemController {
                         .map(commentMapper::toDto)
                         .toList()
         );
+
+        return dto;
+    }
+
+    private ItemResponseDto buildItemResponseDto(Item item,
+                                                 List<Booking> bookings,
+                                                 List<Comment> comments,
+                                                 LocalDateTime now,
+                                                 Long userId) {
+        ItemResponseDto dto = itemMapper.mapToDto(item);
+
+        // Только владелец видит бронирования
+        if (item.getOwner().getId().equals(userId)) {
+            // Последнее завершенное бронирование
+            bookings.stream()
+                    .filter(b -> b.getEnd().isBefore(now))
+                    .max(Comparator.comparing(Booking::getEnd))
+                    .ifPresent(b -> dto.setLastBooking(bookingMapper.toDto(b)));
+
+            // Следующее будущее бронирование
+            bookings.stream()
+                    .filter(b -> b.getStart().isAfter(now))
+                    .min(Comparator.comparing(Booking::getStart))
+                    .ifPresent(b -> dto.setNextBooking(bookingMapper.toDto(b)));
+        }
+
+        // Комментарии
+        dto.setComments(comments.stream()
+                .map(commentMapper::toDto)
+                .toList());
 
         return dto;
     }

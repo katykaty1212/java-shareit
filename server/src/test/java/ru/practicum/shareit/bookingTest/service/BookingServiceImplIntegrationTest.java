@@ -1,18 +1,17 @@
 package ru.practicum.shareit.bookingTest.service;
 
+import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.ShareItServer;
 import ru.practicum.shareit.booking.model.*;
-import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.booking.service.BookingService;
 import ru.practicum.shareit.item.model.Item;
-import ru.practicum.shareit.item.repository.ItemRepository;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.model.UserState;
-import ru.practicum.shareit.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -34,211 +33,111 @@ class BookingServiceImplIntegrationTest {
     private BookingService bookingService;
 
     @Autowired
-    private BookingRepository bookingRepository;
+    private EntityManager em;
 
-    @Autowired
-    private UserRepository userRepository;
+    private User owner;
+    private User booker;
+    private Item availableItem;
 
-    @Autowired
-    private ItemRepository itemRepository;
-
-    @Test
-    void createBooking_shouldSaveAndReturnBooking() {
-        User owner = User.builder()
+    @BeforeEach
+    void setUp() {
+        owner = User.builder()
                 .name("Владелец")
                 .email("owner@mail.com")
                 .state(UserState.ACTIVE)
                 .build();
-        userRepository.save(owner);
+        em.persist(owner);
 
-        User booker = User.builder()
+        booker = User.builder()
                 .name("Арендатор")
                 .email("booker@mail.com")
                 .state(UserState.ACTIVE)
                 .build();
-        userRepository.save(booker);
+        em.persist(booker);
 
-        Item item = new Item();
-        item.setName("Дрель");
-        item.setDescription("Аккумуляторная дрель");
-        item.setAvailable(true);
-        item.setOwner(owner);
-        itemRepository.save(item);
+        availableItem = new Item();
+        availableItem.setName("Дрель");
+        availableItem.setDescription("Аккумуляторная дрель");
+        availableItem.setAvailable(true);
+        availableItem.setOwner(owner);
+        em.persist(availableItem);
 
-        Booking booking = new Booking();
-        booking.setItem(item);
-        booking.setStart(LocalDateTime.now().plusDays(1));
-        booking.setEnd(LocalDateTime.now().plusDays(3));
+        em.flush();
+    }
 
-        Booking result = bookingService.createBooking(booking, booker.getId());
+    @Test
+    void createBooking_shouldSaveAndReturnBooking() {
+        Booking newBooking = new Booking();
+        newBooking.setItem(availableItem);
+        newBooking.setStart(LocalDateTime.now().plusDays(1));
+        newBooking.setEnd(LocalDateTime.now().plusDays(3));
+
+        Booking result = bookingService.createBooking(newBooking, booker.getId());
 
         assertThat(result.getId(), notNullValue());
-        assertThat(result.getItem().getId(), is(item.getId()));
+        assertThat(result.getItem().getId(), is(availableItem.getId()));
         assertThat(result.getBooker().getId(), is(booker.getId()));
         assertThat(result.getStatus(), is(BookingStatus.WAITING));
 
-        Booking savedBooking = bookingRepository.findById(result.getId()).orElse(null);
+        Booking savedBooking = em.find(Booking.class, result.getId());
         assertThat(savedBooking, notNullValue());
         assertThat(savedBooking.getStatus(), is(BookingStatus.WAITING));
     }
 
     @Test
     void findBookingById_shouldReturnBooking() {
-        User owner = User.builder()
-                .name("Владелец2")
-                .email("owner2@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(owner);
-
-        User booker = User.builder()
-                .name("Арендатор2")
-                .email("booker2@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(booker);
-
-        Item item = new Item();
-        item.setName("Перфоратор");
-        item.setDescription("Мощный перфоратор");
-        item.setAvailable(true);
-        item.setOwner(owner);
-        itemRepository.save(item);
-
-        Booking booking = new Booking();
-        booking.setStart(LocalDateTime.now().plusDays(1));
-        booking.setEnd(LocalDateTime.now().plusDays(3));
-        booking.setItem(item);
-        booking.setBooker(booker);
-        booking.setStatus(BookingStatus.WAITING);
-        bookingRepository.save(booking);
+        Booking booking = createTestBooking(BookingStatus.WAITING);
 
         Booking result = bookingService.findBookingById(booking.getId(), booker.getId());
 
         assertThat(result.getId(), is(booking.getId()));
-        assertThat(result.getItem().getId(), is(item.getId()));
+        assertThat(result.getItem().getId(), is(availableItem.getId()));
         assertThat(result.getBooker().getId(), is(booker.getId()));
     }
 
     @Test
     void updateBookingStatus_shouldApproveBooking() {
-        User owner = User.builder()
-                .name("Владелец3")
-                .email("owner3@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(owner);
-
-        User booker = User.builder()
-                .name("Арендатор3")
-                .email("booker3@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(booker);
-
-        Item item = new Item();
-        item.setName("Болгарка");
-        item.setDescription("УШМ");
-        item.setAvailable(true);
-        item.setOwner(owner);
-        itemRepository.save(item);
-
-        Booking booking = new Booking();
-        booking.setStart(LocalDateTime.now().plusDays(1));
-        booking.setEnd(LocalDateTime.now().plusDays(3));
-        booking.setItem(item);
-        booking.setBooker(booker);
-        booking.setStatus(BookingStatus.WAITING);
-        bookingRepository.save(booking);
+        Booking booking = createTestBooking(BookingStatus.WAITING);
 
         Booking result = bookingService.updateBookingStatus(booking.getId(), owner.getId(), true);
 
         assertThat(result.getStatus(), is(BookingStatus.APPROVED));
 
-        Booking updatedBooking = bookingRepository.findById(booking.getId()).orElse(null);
+        Booking updatedBooking = em.find(Booking.class, booking.getId());
         assertThat(updatedBooking.getStatus(), is(BookingStatus.APPROVED));
     }
 
     @Test
     void updateBookingStatus_shouldRejectBooking() {
-        User owner = User.builder()
-                .name("Владелец4")
-                .email("owner4@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(owner);
-
-        User booker = User.builder()
-                .name("Арендатор4")
-                .email("booker4@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(booker);
-
-        Item item = new Item();
-        item.setName("Лобзик");
-        item.setDescription("Электрический лобзик");
-        item.setAvailable(true);
-        item.setOwner(owner);
-        itemRepository.save(item);
-
-        Booking booking = new Booking();
-        booking.setStart(LocalDateTime.now().plusDays(1));
-        booking.setEnd(LocalDateTime.now().plusDays(3));
-        booking.setItem(item);
-        booking.setBooker(booker);
-        booking.setStatus(BookingStatus.WAITING);
-        bookingRepository.save(booking);
+        Booking booking = createTestBooking(BookingStatus.WAITING);
 
         Booking result = bookingService.updateBookingStatus(booking.getId(), owner.getId(), false);
 
         assertThat(result.getStatus(), is(BookingStatus.REJECTED));
 
-        Booking updatedBooking = bookingRepository.findById(booking.getId()).orElse(null);
+        Booking updatedBooking = em.find(Booking.class, booking.getId());
         assertThat(updatedBooking.getStatus(), is(BookingStatus.REJECTED));
     }
 
     @Test
     void findAllBookingsByUser_shouldReturnUserBookings() {
-        User owner = User.builder()
-                .name("Владелец5")
-                .email("owner5@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(owner);
-
-        User booker = User.builder()
-                .name("Арендатор5")
-                .email("booker5@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(booker);
-
-        Item item = new Item();
-        item.setName("Шуруповерт");
-        item.setDescription("Аккумуляторный");
-        item.setAvailable(true);
-        item.setOwner(owner);
-        itemRepository.save(item);
-
-        Booking booking1 = new Booking();
-        booking1.setStart(LocalDateTime.now().plusDays(1));
-        booking1.setEnd(LocalDateTime.now().plusDays(2));
-        booking1.setItem(item);
-        booking1.setBooker(booker);
-        booking1.setStatus(BookingStatus.APPROVED);
-        bookingRepository.save(booking1);
-
-        Booking booking2 = new Booking();
-        booking2.setStart(LocalDateTime.now().plusDays(3));
-        booking2.setEnd(LocalDateTime.now().plusDays(5));
-        booking2.setItem(item);
-        booking2.setBooker(booker);
-        booking2.setStatus(BookingStatus.WAITING);
-        bookingRepository.save(booking2);
+        Booking booking1 = createTestBooking(BookingStatus.APPROVED);
+        Booking booking2 = createTestBooking(BookingStatus.WAITING);
 
         List<Booking> result = bookingService.findAllBookingsByUser(booker.getId(), BookingState.ALL);
 
         assertThat(result, hasSize(2));
+    }
+
+    private Booking createTestBooking(BookingStatus status) {
+        Booking booking = new Booking();
+        booking.setStart(LocalDateTime.now().plusDays(1));
+        booking.setEnd(LocalDateTime.now().plusDays(3));
+        booking.setItem(availableItem);
+        booking.setBooker(booker);
+        booking.setStatus(status);
+        em.persist(booking);
+        em.flush();
+        return booking;
     }
 }

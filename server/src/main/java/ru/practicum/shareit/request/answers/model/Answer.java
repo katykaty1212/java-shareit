@@ -9,7 +9,7 @@ import ru.practicum.shareit.request.model.RequestItem;
 @Table(name = "answers")
 @Getter
 @Setter
-@Builder
+@Builder(access = AccessLevel.PUBLIC)
 @NoArgsConstructor
 @AllArgsConstructor
 public class Answer {

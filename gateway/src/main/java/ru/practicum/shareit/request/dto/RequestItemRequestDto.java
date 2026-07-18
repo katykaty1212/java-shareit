@@ -11,10 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RequestItemRequestDto {
-    @NotBlank(groups = OnCreate.class, message = "Описание вещи не может быть пустым.")
+    @NotBlank(message = "Описание вещи не может быть пустым.")
     @Size(min = 1, max = 1000)
     private String description;
-
-    public interface OnCreate {
-    }
 }

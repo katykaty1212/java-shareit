@@ -9,6 +9,7 @@ import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.exception.AccessDeniedException;
 import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.item.comments.mapper.CommentMapper;
 import ru.practicum.shareit.item.comments.model.Comment;
 import ru.practicum.shareit.item.comments.repository.CommentRepository;
 import ru.practicum.shareit.item.model.Item;
@@ -47,6 +48,9 @@ class ItemServiceUnitTest {
 
     @Mock
     private CommentRepository commentRepository;
+
+    @Mock
+    private CommentMapper commentMapper;
 
     @Mock
     private BookingRepository bookingRepository;
@@ -296,6 +300,7 @@ class ItemServiceUnitTest {
         when(userService.getUserById(userId)).thenReturn(author);
         when(bookingRepository.findFirstByItemIdAndBookerIdAndEndBefore(eq(itemId), eq(userId), any()))
                 .thenReturn(Optional.of(pastBooking));
+        when(commentMapper.toComment(eq(text), eq(item), eq(author))).thenReturn(savedComment);
         when(commentRepository.save(any())).thenReturn(savedComment);
 
         Comment result = itemService.addComment(itemId, userId, text);

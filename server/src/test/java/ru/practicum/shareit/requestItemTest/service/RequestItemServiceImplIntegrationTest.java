@@ -1,16 +1,16 @@
 package ru.practicum.shareit.requestItemTest.service;
 
+import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.ShareItServer;
 import ru.practicum.shareit.request.model.RequestItem;
-import ru.practicum.shareit.request.repository.RequestItemRepository;
 import ru.practicum.shareit.request.service.RequestItemService;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.model.UserState;
-import ru.practicum.shareit.user.repository.UserRepository;
 
 import java.time.Instant;
 import java.util.List;
@@ -32,20 +32,32 @@ class RequestItemServiceImplIntegrationTest {
     private RequestItemService requestItemService;
 
     @Autowired
-    private RequestItemRepository requestItemRepository;
+    private EntityManager em;
 
-    @Autowired
-    private UserRepository userRepository;
+    private User requestor;
+    private User otherUser;
 
-    @Test
-    void createRequestItem_shouldSaveAndReturnRequest() {
-        User requestor = User.builder()
+    @BeforeEach
+    void setUp() {
+        requestor = User.builder()
                 .name("Иван")
                 .email("ivan@mail.com")
                 .state(UserState.ACTIVE)
                 .build();
-        userRepository.save(requestor);
+        em.persist(requestor);
 
+        otherUser = User.builder()
+                .name("Другой")
+                .email("other@mail.com")
+                .state(UserState.ACTIVE)
+                .build();
+        em.persist(otherUser);
+
+        em.flush();
+    }
+
+    @Test
+    void createRequestItem_shouldSaveAndReturnRequest() {
         RequestItem item = RequestItem.builder()
                 .description("Нужна аккумуляторная дрель")
                 .build();
@@ -57,33 +69,28 @@ class RequestItemServiceImplIntegrationTest {
         assertThat(result.getRequestor().getId(), is(requestor.getId()));
         assertThat(result.getCreated(), notNullValue());
 
-        RequestItem saved = requestItemRepository.findById(result.getId()).orElse(null);
+        RequestItem saved = em.find(RequestItem.class, result.getId());
         assertThat(saved, notNullValue());
         assertThat(saved.getDescription(), is("Нужна аккумуляторная дрель"));
     }
 
     @Test
     void getAllRequestItemByOwner_shouldReturnUserRequests() {
-        User requestor = User.builder()
-                .name("Петр")
-                .email("petr@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(requestor);
-
         RequestItem request1 = RequestItem.builder()
                 .description("Нужна дрель")
                 .requestor(requestor)
                 .created(Instant.now().minusSeconds(10))
                 .build();
-        requestItemRepository.save(request1);
+        em.persist(request1);
 
         RequestItem request2 = RequestItem.builder()
                 .description("Нужна отвертка")
                 .requestor(requestor)
                 .created(Instant.now())
                 .build();
-        requestItemRepository.save(request2);
+        em.persist(request2);
+
+        em.flush();
 
         List<RequestItem> result = requestItemService.getAllRequestItemByOwner(requestor.getId());
 
@@ -92,35 +99,23 @@ class RequestItemServiceImplIntegrationTest {
 
     @Test
     void getAllRequestItemAllUsers_shouldReturnOtherUsersRequests() {
-        User currentUser = User.builder()
-                .name("Текущий")
-                .email("current@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(currentUser);
-
-        User otherUser = User.builder()
-                .name("Другой")
-                .email("other@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(otherUser);
-
         RequestItem currentRequest = RequestItem.builder()
                 .description("Мой запрос")
-                .requestor(currentUser)
+                .requestor(requestor)
                 .created(Instant.now())
                 .build();
-        requestItemRepository.save(currentRequest);
+        em.persist(currentRequest);
 
         RequestItem otherRequest = RequestItem.builder()
                 .description("Запрос другого")
                 .requestor(otherUser)
                 .created(Instant.now())
                 .build();
-        requestItemRepository.save(otherRequest);
+        em.persist(otherRequest);
 
-        List<RequestItem> result = requestItemService.getAllRequestItemAllUsers(currentUser.getId());
+        em.flush();
+
+        List<RequestItem> result = requestItemService.getAllRequestItemAllUsers(requestor.getId());
 
         assertThat(result, hasSize(1));
         assertThat(result.get(0).getDescription(), is("Запрос другого"));
@@ -128,19 +123,13 @@ class RequestItemServiceImplIntegrationTest {
 
     @Test
     void getRequestItemById_shouldReturnRequest() {
-        User requestor = User.builder()
-                .name("Сергей")
-                .email("sergey@mail.com")
-                .state(UserState.ACTIVE)
-                .build();
-        userRepository.save(requestor);
-
         RequestItem request = RequestItem.builder()
                 .description("Нужен молоток")
                 .requestor(requestor)
                 .created(Instant.now())
                 .build();
-        requestItemRepository.save(request);
+        em.persist(request);
+        em.flush();
 
         RequestItem result = requestItemService.getRequestItemById(request.getId());
 

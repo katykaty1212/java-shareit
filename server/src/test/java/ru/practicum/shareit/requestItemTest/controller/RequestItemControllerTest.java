@@ -76,6 +76,7 @@ class RequestItemControllerTest {
                 .id(1L)
                 .description("Нужна аккумуляторная дрель")
                 .requestor(user)
+                .answers(List.of())
                 .build();
     }
 
@@ -99,7 +100,6 @@ class RequestItemControllerTest {
     void getAllRequestItemByOwner_shouldReturnList() throws Exception {
         when(requestItemService.getAllRequestItemByOwner(2L)).thenReturn(List.of(requestItem));
         when(mapper.mapToDto(requestItem)).thenReturn(responseDto);
-        when(answerRepository.findByRequestId(1L)).thenReturn(List.of());
 
         mvc.perform(get("/requests")
                         .header("X-Sharer-User-Id", 2L))
@@ -113,7 +113,6 @@ class RequestItemControllerTest {
     void getAllRequests_shouldReturnList() throws Exception {
         when(requestItemService.getAllRequestItemAllUsers(1L)).thenReturn(List.of(requestItem));
         when(mapper.mapToDto(requestItem)).thenReturn(responseDto);
-        when(answerRepository.findByRequestId(1L)).thenReturn(List.of());
 
         mvc.perform(get("/requests/all")
                         .header("X-Sharer-User-Id", 1L))
@@ -126,7 +125,6 @@ class RequestItemControllerTest {
     void getRequestById_shouldReturnRequest() throws Exception {
         when(requestItemService.getRequestItemById(1L)).thenReturn(requestItem);
         when(mapper.mapToDto(requestItem)).thenReturn(responseDto);
-        when(answerRepository.findByRequestId(1L)).thenReturn(List.of());
 
         mvc.perform(get("/requests/1"))
                 .andExpect(status().isOk())
@@ -145,6 +143,7 @@ class RequestItemControllerTest {
         requestItem.setId(requestId);
         requestItem.setDescription("Нужна дрель");
         requestItem.setRequestor(requestor);
+        requestItem.setAnswers(List.of());
 
         User owner = new User();
         owner.setId(2L);
@@ -169,7 +168,6 @@ class RequestItemControllerTest {
 
         when(requestItemService.getRequestItemById(requestId)).thenReturn(requestItem);
         when(mapper.mapToDto(any(RequestItem.class))).thenReturn(responseDto);
-        when(answerRepository.findByRequestId(requestId)).thenReturn(List.of(answer));
 
         mvc.perform(get("/requests/{id}", requestId))
                 .andExpect(status().isOk())

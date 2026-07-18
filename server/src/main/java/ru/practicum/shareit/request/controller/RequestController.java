@@ -3,7 +3,6 @@ package ru.practicum.shareit.request.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.request.answers.model.AnswerDto;
-import ru.practicum.shareit.request.answers.repository.AnswerRepository;
 import ru.practicum.shareit.request.mapper.RequestItemMapper;
 import ru.practicum.shareit.request.model.*;
 import ru.practicum.shareit.request.service.RequestItemService;
@@ -18,7 +17,6 @@ public class RequestController {
 
     private final RequestItemService requestItemService;
     private final RequestItemMapper mapper;
-    private final AnswerRepository answerRepository;
 
     @PostMapping
     public RequestItemResponseDto createRequest(@RequestBody RequestItemRequestDto dto,
@@ -50,7 +48,7 @@ public class RequestController {
     private RequestItemResponseDto enrichWithAnswers(RequestItem requestItem) {
         RequestItemResponseDto dto = mapper.mapToDto(requestItem);
 
-        List<AnswerDto> answers = answerRepository.findByRequestId(requestItem.getId()).stream()
+        List<AnswerDto> answers = requestItem.getAnswers().stream()
                 .map(answer -> AnswerDto.builder()
                         .id(answer.getId())
                         .itemId(answer.getItem().getId())

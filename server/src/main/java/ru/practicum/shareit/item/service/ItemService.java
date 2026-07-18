@@ -2,11 +2,14 @@ package ru.practicum.shareit.item.service;
 
 import ru.practicum.shareit.item.comments.model.Comment;
 import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.item.model.ItemWithDetails;
 
 import java.util.List;
 
 public interface ItemService {
     List<Item> findAllItemsByUser(Long ownerId);
+
+    List<ItemWithDetails> findAllItemsByUserWithDetails(Long ownerId);
 
     Item findItemById(Long itemId);
 

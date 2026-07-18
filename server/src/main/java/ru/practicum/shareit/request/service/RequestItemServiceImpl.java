@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.request.answers.model.Answer;
+import ru.practicum.shareit.request.answers.repository.AnswerRepository;
 import ru.practicum.shareit.request.model.RequestItem;
 import ru.practicum.shareit.request.repository.RequestItemRepository;
 import ru.practicum.shareit.user.model.User;
@@ -11,12 +13,15 @@ import ru.practicum.shareit.user.service.UserService;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class RequestItemServiceImpl implements RequestItemService {
     private final RequestItemRepository repository;
     private final UserService userService;
+    private final AnswerRepository answerRepository;
 
     @Override
     @Transactional
@@ -29,14 +34,52 @@ public class RequestItemServiceImpl implements RequestItemService {
 
     @Override
     public List<RequestItem> getAllRequestItemByOwner(Long ownerId) {
-        return repository.findAllByRequestorIdOrderByCreatedDesc(ownerId);
+        List<RequestItem> requests = repository.findAllByRequestorIdOrderByCreatedDesc(ownerId);
+
+        if (requests.isEmpty()) {
+            return requests;
+        }
+
+        List<Long> requestIds = requests.stream()
+                .map(RequestItem::getId)
+                .toList();
+
+        List<Answer> answers = answerRepository.findByRequestIdIn(requestIds);
+
+        Map<Long, List<Answer>> answersByRequest = answers.stream()
+                .collect(Collectors.groupingBy(a -> a.getRequest().getId()));
+
+        requests.forEach(request -> {
+            List<Answer> requestAnswers = answersByRequest.getOrDefault(request.getId(), List.of());
+            request.setAnswers(requestAnswers);
+        });
+
+        return requests;
     }
 
     @Override
     public List<RequestItem> getAllRequestItemAllUsers(Long currentUserId) {
-        return repository.findAll().stream()
-                .filter(r -> !r.getRequestor().getId().equals(currentUserId))
+        List<RequestItem> requests = repository.findAllByRequestorIdNotOrderByCreatedDesc(currentUserId);
+
+        if (requests.isEmpty()) {
+            return requests;
+        }
+
+        List<Long> requestIds = requests.stream()
+                .map(RequestItem::getId)
                 .toList();
+
+        List<Answer> answers = answerRepository.findByRequestIdIn(requestIds);
+
+        Map<Long, List<Answer>> answersByRequest = answers.stream()
+                .collect(Collectors.groupingBy(a -> a.getRequest().getId()));
+
+        requests.forEach(request -> {
+            List<Answer> requestAnswers = answersByRequest.getOrDefault(request.getId(), List.of());
+            request.setAnswers(requestAnswers);
+        });
+
+        return requests;
     }
 
     @Override

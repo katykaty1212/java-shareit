@@ -8,9 +8,11 @@ import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.exception.AccessDeniedException;
 import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.item.comments.mapper.CommentMapper;
 import ru.practicum.shareit.item.comments.repository.CommentRepository;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.comments.model.Comment;
+import ru.practicum.shareit.item.model.ItemWithDetails;
 import ru.practicum.shareit.item.repository.ItemRepository;
 import ru.practicum.shareit.request.answers.model.Answer;
 import ru.practicum.shareit.request.answers.repository.AnswerRepository;
@@ -21,7 +23,9 @@ import ru.practicum.shareit.user.service.UserService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,10 +38,44 @@ public class ItemServiceImpl implements ItemService {
     private final CommentRepository commentRepository;
     private final RequestItemRepository requestItemRepository;
     private final AnswerRepository answerRepository;
+    private final CommentMapper commentMapper;
 
     @Override
     public List<Item> findAllItemsByUser(Long ownerId) {
         return itemRepository.findAllByOwnerId(ownerId);
+    }
+
+    public List<ItemWithDetails> findAllItemsByUserWithDetails(Long ownerId) {
+        log.info("Получение всех вещей пользователя {} с деталями", ownerId);
+
+        List<Item> items = itemRepository.findAllByOwnerId(ownerId);
+
+        if (items.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> itemIds = items.stream()
+                .map(Item::getId)
+                .toList();
+
+        List<Booking> bookings = bookingRepository.findAllByItemIdIn(itemIds);
+
+        List<Comment> comments = commentRepository.findAllByItemIdIn(itemIds);
+
+        Map<Long, List<Booking>> bookingsByItem = bookings.stream()
+                .collect(Collectors.groupingBy(b -> b.getItem().getId()));
+
+        Map<Long, List<Comment>> commentsByItem = comments.stream()
+                .collect(Collectors.groupingBy(c -> c.getItem().getId()));
+
+
+        return items.stream()
+                .map(item -> new ItemWithDetails(
+                        item,
+                        bookingsByItem.getOrDefault(item.getId(), List.of()),
+                        commentsByItem.getOrDefault(item.getId(), List.of())
+                ))
+                .toList();
     }
 
     @Override
@@ -138,10 +176,7 @@ public class ItemServiceImpl implements ItemService {
         }
         log.info("Бронирование найдено: id={}", booking.get().getId());
 
-        Comment comment = new Comment();
-        comment.setText(text);
-        comment.setItem(item);
-        comment.setAuthor(author);
+        Comment comment = commentMapper.toComment(text, item, author);
 
         return commentRepository.save(comment);
     }

@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.shareit.item.dto.CommentDto;
+import ru.practicum.shareit.item.dto.CommentRequestDto;
 import ru.practicum.shareit.item.dto.ItemRequestDto;
 
 @RestController
@@ -16,7 +16,7 @@ import ru.practicum.shareit.item.dto.ItemRequestDto;
 @Validated
 public class ItemController {
 
-    private final ItemClient itemClient;  // ← не ItemService, а ItemClient!
+    private final ItemClient itemClient;
 
     @GetMapping
     public ResponseEntity<Object> findAllItemsByUser(@RequestHeader("X-Sharer-User-Id") long userId) {
@@ -65,8 +65,8 @@ public class ItemController {
     @PostMapping("/{itemId}/comment")
     public ResponseEntity<Object> addComment(@RequestHeader("X-Sharer-User-Id") long userId,
                                              @PathVariable long itemId,
-                                             @Valid @RequestBody CommentDto commentDto) {
+                                             @Valid @RequestBody CommentRequestDto commentRequestDtoDto) {
         log.info("POST /items/{}/comment - комментарий от пользователя {}", itemId, userId);
-        return itemClient.addComment(userId, itemId, commentDto);
+        return itemClient.addComment(userId, itemId, commentRequestDtoDto);
     }
 }

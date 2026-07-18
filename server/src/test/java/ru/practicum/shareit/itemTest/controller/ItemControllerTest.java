@@ -16,12 +16,14 @@ import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.item.comments.mapper.CommentMapper;
 import ru.practicum.shareit.item.comments.model.Comment;
 import ru.practicum.shareit.item.comments.model.CommentDto;
+import ru.practicum.shareit.item.comments.model.CommentRequestDto;
 import ru.practicum.shareit.item.comments.repository.CommentRepository;
 import ru.practicum.shareit.item.controller.ItemController;
 import ru.practicum.shareit.item.mapper.ItemMapperMapstruct;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.model.ItemRequestDto;
 import ru.practicum.shareit.item.model.ItemResponseDto;
+import ru.practicum.shareit.item.model.ItemWithDetails;
 import ru.practicum.shareit.item.service.ItemService;
 import ru.practicum.shareit.user.model.User;
 
@@ -161,30 +163,22 @@ class ItemControllerTest {
     }
 
     @Test
-    void findAllItemsByUser_shouldCallEnrich() throws Exception {
+    void findAllItemsByUser_shouldReturnItemsWithDetails() throws Exception {
         Long ownerId = 1L;
 
-        User owner = new User();
-        owner.setId(1L);
+        when(itemService.findAllItemsByUserWithDetails(ownerId))
+                .thenReturn(List.of(new ItemWithDetails(item, List.of(), List.of())));
 
-        Item item = new Item();
-        item.setId(1L);
-        item.setName("Дрель");
-        item.setOwner(owner);  // ← ДОБАВИТЬ!
-
-        when(itemService.findAllItemsByUser(ownerId)).thenReturn(List.of(item));
-        when(itemMapper.mapToDto(any(Item.class))).thenReturn(new ItemResponseDto());
-        when(bookingRepository.findFirstByItemIdAndEndBeforeOrderByEndDesc(anyLong(), any()))
-                .thenReturn(Optional.empty());
-        when(bookingRepository.findFirstByItemIdAndStartAfterOrderByStartAsc(anyLong(), any()))
-                .thenReturn(Optional.empty());
-        when(commentRepository.findAllByItemId(anyLong())).thenReturn(List.of());
+        when(itemMapper.mapToDto(any(Item.class))).thenReturn(responseDto);
 
         mvc.perform(get("/items")
                         .header("X-Sharer-User-Id", ownerId))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()", is(1)))
+                .andExpect(jsonPath("$[0].id", is(1)))
+                .andExpect(jsonPath("$[0].name", is("Дрель")));
 
-        verify(itemService, times(1)).findAllItemsByUser(ownerId);
+        verify(itemService, times(1)).findAllItemsByUserWithDetails(ownerId);
     }
 
     @Test
@@ -231,7 +225,7 @@ class ItemControllerTest {
         when(itemService.addComment(eq(itemId), eq(userId), eq(text))).thenReturn(comment);
         when(commentMapper.toDto(comment)).thenReturn(commentDto);
 
-        CommentDto requestDto = new CommentDto();
+        CommentRequestDto requestDto = new CommentRequestDto();
         requestDto.setText(text);
 
         mvc.perform(post("/items/" + itemId + "/comment")

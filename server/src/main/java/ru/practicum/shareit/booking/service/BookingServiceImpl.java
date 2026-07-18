@@ -98,6 +98,11 @@ public class BookingServiceImpl implements BookingService {
         }
         log.info("Статус WAITING, можно обновлять");
 
+        if (booking.getStart().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Нельзя подтвердить бронирование, которое уже началось");
+        }
+        log.info("Дата начала в будущем");
+
         booking.setStatus(approved ? BookingStatus.APPROVED : BookingStatus.REJECTED);
         log.info("Новый статус: {}", booking.getStatus());
 
