@@ -94,8 +94,8 @@ public class RequestItemTest {
         assertThat(result.get(0).getDescription(), is("Запрос дрели."));
         assertThat(result.get(1).getDescription(), is("Запрос молотка."));
 
-        verify(requestItemRepository, times(1)).
-                findAllByRequestorIdNotOrderByCreatedDesc(currentUser.getId());
+        verify(requestItemRepository, times(1))
+                .findAllByRequestorIdNotOrderByCreatedDesc(currentUser.getId());
     }
 
     @Test
